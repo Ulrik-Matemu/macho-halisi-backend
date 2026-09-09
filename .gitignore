@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+
+# OS / IDE
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Docker local data (if any bind mounts are added later)
+pgdata/
