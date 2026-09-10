@@ -39,14 +39,16 @@ enum EnquiryStatus {
 // ─── Models ────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(VIEWER)
-  mfaSecret    String?
-  mfaEnabled   Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(uuid()) @db.Uuid
+  email            String    @unique
+  passwordHash     String
+  role             Role      @default(VIEWER)
+  mfaSecret        String?
+  mfaEnabled       Boolean   @default(false)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Relations
   authoredItineraries Itinerary[]    @relation("author")

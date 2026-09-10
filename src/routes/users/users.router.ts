@@ -58,3 +58,50 @@ usersRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res, nex
     next(err);
   }
 });
+
+// POST /users/:id/mfa/reset — Admin-only MFA reset.
+// Clears the target user's mfaSecret/mfaEnabled and revokes all of their
+// active refresh tokens, forcing a clean re-enrollment on next login. This
+// is the only supported path for resetting an already-enrolled user's MFA;
+// POST /auth/mfa/enroll refuses to touch an account that already has MFA
+// enabled (see src/routes/auth/auth.router.ts).
+usersRouter.post(
+  "/:id/mfa/reset",
+  requireAuth,
+  requireRole(Role.ADMIN),
+  async (req, res, next) => {
+    try {
+      const id = req.params.id as string;
+
+      const existing = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true, email: true, role: true, mfaEnabled: true },
+      });
+
+      if (!existing) {
+        res.status(404).json({ status: "error", message: "User not found" });
+        return;
+      }
+
+      const [user] = await prisma.$transaction([
+        prisma.user.update({
+          where: { id },
+          data: { mfaEnabled: false, mfaSecret: null },
+          select: { id: true, email: true, role: true, mfaEnabled: true },
+        }),
+        prisma.refreshToken.updateMany({
+          where: { userId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ]);
+
+      res.json({
+        status: "ok",
+        message: "MFA has been reset. The user must re-enroll on next login.",
+        user,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);

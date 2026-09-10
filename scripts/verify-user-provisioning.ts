@@ -5,6 +5,7 @@ import { Role } from "@prisma/client";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/db/prisma.js";
 import { hashPassword } from "../src/lib/password.js";
+import { decryptMfaSecret } from "../src/lib/mfa.js";
 import { seedAdmin } from "./seed-admin.js";
 
 interface TestCaseResult {
@@ -129,7 +130,7 @@ async function main() {
       const challengeToken = loginRes.data.challengeToken;
 
       const user = await prisma.user.findUnique({ where: { email: adminEmail } });
-      adminMfaSecret = user?.mfaSecret || null;
+      adminMfaSecret = user?.mfaSecret ? decryptMfaSecret(user.mfaSecret) : null;
 
       const totpCode = generateSync({ secret: adminMfaSecret! });
       const verifyRes = await makeRequest(serverUrl, "/auth/mfa/verify", "POST", {}, {

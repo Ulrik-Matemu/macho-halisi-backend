@@ -10,9 +10,18 @@ import {
   verifyMfaChallengeToken,
   verifyRefreshToken,
   hashToken,
+  parseDurationMs,
 } from "../../lib/tokens.js";
-import { generateMfaSecret, verifyMfaCode, generateQrCodeDataUrl } from "../../lib/mfa.js";
+import { env } from "../../config/env.js";
+import {
+  generateMfaSecret,
+  verifyMfaCode,
+  generateQrCodeDataUrl,
+  encryptMfaSecret,
+  decryptMfaSecret,
+} from "../../lib/mfa.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
+import { authLimiter, mfaLimiter } from "../../middleware/rateLimit.js";
 import {
   loginSchema,
   mfaVerifySchema,
@@ -23,13 +32,19 @@ import {
 
 export const authRouter = Router();
 
+// Persisted lockout thresholds. These back up the in-memory authLimiter:
+// the rate limiter resets on process restart or if the attacker rotates
+// IPs, but this state lives in the database and does not.
+const MAX_FAILED_LOGIN_ATTEMPTS = 10;
+const LOGIN_LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 // Helper to issue access and refresh token pair
 async function issueTokenPair(userId: string, role: Role) {
   const accessToken = signAccessToken({ userId, role });
   const tokenId = crypto.randomUUID();
   const refreshToken = signRefreshToken({ userId, tokenId });
   const tokenHash = hashToken(refreshToken);
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const expiresAt = new Date(Date.now() + parseDurationMs(env.JWT_REFRESH_EXPIRES_IN));
 
   await prisma.refreshToken.create({
     data: {
@@ -44,7 +59,7 @@ async function issueTokenPair(userId: string, role: Role) {
 }
 
 // 1. POST /auth/login
-authRouter.post("/login", async (req, res, next) => {
+authRouter.post("/login", authLimiter, async (req, res, next) => {
   try {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -55,14 +70,40 @@ authRouter.post("/login", async (req, res, next) => {
     const { email, password } = parseResult.data;
     const user = await prisma.user.findUnique({ where: { email } });
 
+    // Account-level lockout, independent of the IP-keyed authLimiter above.
+    if (user?.lockedUntil && user.lockedUntil > new Date()) {
+      res.status(423).json({
+        status: "error",
+        message: "This account is temporarily locked due to repeated failed login attempts. Please try again later.",
+      });
+      return;
+    }
+
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      if (user) {
+        const failedLoginCount = user.failedLoginCount + 1;
+        const lockedOut = failedLoginCount >= MAX_FAILED_LOGIN_ATTEMPTS;
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginCount: lockedOut ? 0 : failedLoginCount,
+            lockedUntil: lockedOut ? new Date(Date.now() + LOGIN_LOCKOUT_DURATION_MS) : null,
+          },
+        });
+      }
       res.status(401).json({ status: "error", message: "Invalid email or password" });
       return;
     }
 
-    const challengeToken = signMfaChallengeToken(user.id);
+    if (user.failedLoginCount > 0 || user.lockedUntil) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginCount: 0, lockedUntil: null },
+      });
+    }
 
     if (!user.mfaEnabled) {
+      const challengeToken = signMfaChallengeToken(user.id, "mfa_enroll");
       res.json({
         status: "mfa_enrollment_required",
         challengeToken,
@@ -70,6 +111,7 @@ authRouter.post("/login", async (req, res, next) => {
       return;
     }
 
+    const challengeToken = signMfaChallengeToken(user.id, "mfa_challenge");
     res.json({
       status: "mfa_required",
       challengeToken,
@@ -91,9 +133,9 @@ authRouter.post("/mfa/enroll", async (req, res, next) => {
     const token = authHeader.slice(7);
     let payload;
     try {
-      payload = verifyMfaChallengeToken(token);
+      payload = verifyMfaChallengeToken(token, "mfa_enroll");
     } catch {
-      res.status(401).json({ status: "error", message: "Invalid or expired challenge token" });
+      res.status(401).json({ status: "error", message: "Invalid or expired enrollment token" });
       return;
     }
 
@@ -103,12 +145,25 @@ authRouter.post("/mfa/enroll", async (req, res, next) => {
       return;
     }
 
+    // Enrollment tokens are only ever minted for users without MFA already
+    // enabled, but re-check here in case the user enabled MFA in another
+    // session between login and this call.
+    if (user.mfaEnabled) {
+      res.status(409).json({
+        status: "error",
+        message: "MFA is already enabled for this account. Contact an administrator to reset it.",
+      });
+      return;
+    }
+
     const secret = generateMfaSecret();
     await prisma.user.update({
       where: { id: user.id },
-      data: { mfaSecret: secret },
+      data: { mfaSecret: encryptMfaSecret(secret) },
     });
 
+    // The QR code / manual entry secret shown to the user is the plaintext
+    // value; only the stored copy is encrypted.
     const qrCodeDataUrl = await generateQrCodeDataUrl(user.email, secret);
 
     res.json({
@@ -122,7 +177,7 @@ authRouter.post("/mfa/enroll", async (req, res, next) => {
 });
 
 // 3. POST /auth/mfa/enroll/confirm
-authRouter.post("/mfa/enroll/confirm", async (req, res, next) => {
+authRouter.post("/mfa/enroll/confirm", mfaLimiter, async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
@@ -133,9 +188,9 @@ authRouter.post("/mfa/enroll/confirm", async (req, res, next) => {
     const token = authHeader.slice(7);
     let payload;
     try {
-      payload = verifyMfaChallengeToken(token);
+      payload = verifyMfaChallengeToken(token, "mfa_enroll");
     } catch {
-      res.status(401).json({ status: "error", message: "Invalid or expired challenge token" });
+      res.status(401).json({ status: "error", message: "Invalid or expired enrollment token" });
       return;
     }
 
@@ -151,7 +206,15 @@ authRouter.post("/mfa/enroll/confirm", async (req, res, next) => {
       return;
     }
 
-    const isValid = verifyMfaCode(parseResult.data.code, user.mfaSecret);
+    if (user.mfaEnabled) {
+      res.status(409).json({
+        status: "error",
+        message: "MFA is already enabled for this account. Contact an administrator to reset it.",
+      });
+      return;
+    }
+
+    const isValid = verifyMfaCode(parseResult.data.code, decryptMfaSecret(user.mfaSecret));
     if (!isValid) {
       res.status(400).json({ status: "error", message: "Invalid verification code" });
       return;
@@ -174,7 +237,7 @@ authRouter.post("/mfa/enroll/confirm", async (req, res, next) => {
 });
 
 // 4. POST /auth/mfa/verify
-authRouter.post("/mfa/verify", async (req, res, next) => {
+authRouter.post("/mfa/verify", mfaLimiter, async (req, res, next) => {
   try {
     const parseResult = mfaVerifySchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -185,7 +248,7 @@ authRouter.post("/mfa/verify", async (req, res, next) => {
     const { challengeToken, code } = parseResult.data;
     let payload;
     try {
-      payload = verifyMfaChallengeToken(challengeToken);
+      payload = verifyMfaChallengeToken(challengeToken, "mfa_challenge");
     } catch {
       res.status(401).json({ status: "error", message: "Invalid or expired challenge token" });
       return;
@@ -197,7 +260,7 @@ authRouter.post("/mfa/verify", async (req, res, next) => {
       return;
     }
 
-    const isValid = verifyMfaCode(code, user.mfaSecret);
+    const isValid = verifyMfaCode(code, decryptMfaSecret(user.mfaSecret));
     if (!isValid) {
       res.status(400).json({ status: "error", message: "Invalid verification code" });
       return;
@@ -238,7 +301,30 @@ authRouter.post("/refresh", async (req, res, next) => {
       where: { tokenHash },
     });
 
-    if (!tokenRecord || tokenRecord.revokedAt !== null || tokenRecord.expiresAt < new Date()) {
+    if (!tokenRecord) {
+      res.status(401).json({ status: "error", message: "Invalid or expired refresh token" });
+      return;
+    }
+
+    // Reuse detection: this exact token was already rotated away (or
+    // explicitly logged out) once before. A legitimate client never
+    // presents the same refresh token twice — this is the signal that the
+    // token was stolen and both the attacker and the legitimate holder are
+    // now racing to use it. Revoke every live token for the user so both
+    // are forced to log in again.
+    if (tokenRecord.revokedAt !== null) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: tokenRecord.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      res.status(401).json({
+        status: "error",
+        message: "Refresh token reuse detected. All sessions have been revoked — please log in again.",
+      });
+      return;
+    }
+
+    if (tokenRecord.expiresAt < new Date()) {
       res.status(401).json({ status: "error", message: "Invalid or expired refresh token" });
       return;
     }
@@ -249,11 +335,19 @@ authRouter.post("/refresh", async (req, res, next) => {
       return;
     }
 
-    const accessToken = signAccessToken({ userId: user.id, role: user.role });
+    // Rotate: revoke the presented token and issue a brand new pair. The
+    // old token can now never be validly presented again — any future
+    // presentation of it is the reuse-detection branch above.
+    await prisma.refreshToken.update({
+      where: { id: tokenRecord.id },
+      data: { revokedAt: new Date() },
+    });
+
+    const tokens = await issueTokenPair(user.id, user.role);
 
     res.json({
       status: "ok",
-      accessToken,
+      ...tokens,
     });
   } catch (err) {
     next(err);

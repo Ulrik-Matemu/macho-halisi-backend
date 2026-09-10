@@ -5,6 +5,7 @@ import { Role } from "@prisma/client";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/db/prisma.js";
 import { hashPassword } from "../src/lib/password.js";
+import { signMfaChallengeToken } from "../src/lib/tokens.js";
 
 interface TestCaseResult {
   num: number;
@@ -17,6 +18,7 @@ interface TestCaseResult {
 }
 
 const results: TestCaseResult[] = [];
+const TOTAL_TESTS = 16;
 
 async function makeRequest(
   serverUrl: string,
@@ -130,6 +132,17 @@ async function main() {
 
     const mfaSecret = res2.data?.secret;
 
+    // Confirm the secret is stored encrypted, not in plaintext (Phase 1.4).
+    const rawStoredSecret = (
+      await prisma.user.findUnique({ where: { id: testUserId }, select: { mfaSecret: true } })
+    )?.mfaSecret;
+    const secretIsEncryptedAtRest = Boolean(rawStoredSecret) && rawStoredSecret !== mfaSecret && rawStoredSecret!.startsWith("v1:");
+    console.log(
+      secretIsEncryptedAtRest
+        ? "   🔐 Confirmed: mfaSecret is stored encrypted at rest, not as plaintext."
+        : `   ⚠️  WARNING: stored mfaSecret does not look encrypted (got: ${rawStoredSecret?.slice(0, 12)}...)`
+    );
+
     // ──────────────────────────────────────────────────────────────────────────
     // TEST 3: POST /auth/mfa/enroll/confirm with valid TOTP -> tokens + mfaEnabled true
     // ──────────────────────────────────────────────────────────────────────────
@@ -212,158 +225,277 @@ async function main() {
     console.log(pass5 ? "✅ Test 5 PASSED" : `❌ Test 5 FAILED: ${JSON.stringify(res5.data)}`);
 
     let currentAccessToken = res5.data?.accessToken;
-    const currentRefreshToken = res5.data?.refreshToken;
+    let currentRefreshToken = res5.data?.refreshToken;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TEST 6: GET /auth/me with valid access token -> returns user
+    // TEST 6 (REGRESSION): the "mfa_required" challenge token issued to this
+    // now-enrolled user must NOT be accepted by POST /auth/mfa/enroll. Before
+    // the purpose-separation fix, /auth/login minted the same token "purpose"
+    // regardless of enrollment state, so this exact call would succeed and
+    // silently overwrite the user's real MFA secret — a full 2FA bypass for
+    // anyone holding just the password. secondChallengeToken is a signed JWT
+    // (not single-use/consumed by Test 5), so it is still valid here.
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("\n--- Test 6: Authenticated request to GET /auth/me ---");
-    const res6 = await makeRequest(serverUrl, "/auth/me", "GET", {
-      Authorization: `Bearer ${currentAccessToken}`,
-    });
-    const pass6 =
-      res6.status === 200 &&
-      res6.data?.status === "ok" &&
-      res6.data?.user?.id === testUserId &&
-      res6.data?.user?.email === testEmail &&
-      res6.data?.user?.role === Role.AUTHOR;
+    console.log("\n--- Test 6 (REGRESSION): mfa_challenge token rejected by /auth/mfa/enroll ---");
+    const res6 = await makeRequest(
+      serverUrl,
+      "/auth/mfa/enroll",
+      "POST",
+      { Authorization: `Bearer ${secondChallengeToken}` }
+    );
+    const pass6 = res6.status !== 200 && res6.data?.status === "error";
 
     results.push({
       num: 6,
-      name: "GET /auth/me successfully authenticates and returns user info",
+      name: "REGRESSION: mfa_required challenge token cannot re-enroll an already-enrolled user",
       passed: pass6,
       status: res6.status,
-      expectedStatus: 200,
-      details: `Returned user: id=${res6.data?.user?.id}, email=${res6.data?.user?.email}, role=${res6.data?.user?.role}`,
+      expectedStatus: 401,
+      details: `Response: ${JSON.stringify(res6.data)}`,
     });
-    console.log(pass6 ? "✅ Test 6 PASSED" : `❌ Test 6 FAILED: ${JSON.stringify(res6.data)}`);
+    console.log(pass6 ? "✅ Test 6 PASSED" : `❌ Test 6 FAILED (MFA BYPASS STILL POSSIBLE): ${JSON.stringify(res6.data)}`);
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TEST 7: GET /auth/me with NO token -> 401
+    // TEST 7 (DEFENSE IN DEPTH): even a correctly-purposed "mfa_enroll" token
+    // must be rejected by /auth/mfa/enroll if the target user already has MFA
+    // enabled. In normal operation /auth/login never mints such a token for an
+    // enrolled user, so this simulates a forged/leaked token to prove the
+    // explicit `user.mfaEnabled` guard inside the route itself also holds.
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("\n--- Test 7: GET /auth/me without token is rejected ---");
-    const res7 = await makeRequest(serverUrl, "/auth/me", "GET");
-    const pass7 = res7.status === 401 && res7.data?.status === "error";
+    console.log("\n--- Test 7 (DEFENSE IN DEPTH): forged mfa_enroll token rejected for enrolled user ---");
+    const forgedEnrollToken = signMfaChallengeToken(testUserId, "mfa_enroll");
+    const res7 = await makeRequest(
+      serverUrl,
+      "/auth/mfa/enroll",
+      "POST",
+      { Authorization: `Bearer ${forgedEnrollToken}` }
+    );
+    const pass7 = res7.status === 409 && res7.data?.status === "error";
 
     results.push({
       num: 7,
-      name: "GET /auth/me without authorization header returns 401",
+      name: "DEFENSE IN DEPTH: forged mfa_enroll token rejected with 409 for already-enrolled user",
       passed: pass7,
       status: res7.status,
-      expectedStatus: 401,
+      expectedStatus: 409,
       details: `Response: ${JSON.stringify(res7.data)}`,
     });
     console.log(pass7 ? "✅ Test 7 PASSED" : `❌ Test 7 FAILED: ${JSON.stringify(res7.data)}`);
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TEST 8: GET /auth/me with INVALID token -> 401
+    // TEST 8: GET /auth/me with valid access token -> returns user
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("\n--- Test 8: GET /auth/me with invalid token is rejected ---");
+    console.log("\n--- Test 8: Authenticated request to GET /auth/me ---");
     const res8 = await makeRequest(serverUrl, "/auth/me", "GET", {
-      Authorization: "Bearer invalid.token.value",
+      Authorization: `Bearer ${currentAccessToken}`,
     });
-    const pass8 = res8.status === 401 && res8.data?.status === "error";
+    const pass8 =
+      res8.status === 200 &&
+      res8.data?.status === "ok" &&
+      res8.data?.user?.id === testUserId &&
+      res8.data?.user?.email === testEmail &&
+      res8.data?.user?.role === Role.AUTHOR;
 
     results.push({
       num: 8,
-      name: "GET /auth/me with invalid/malformed token returns 401",
+      name: "GET /auth/me successfully authenticates and returns user info",
       passed: pass8,
       status: res8.status,
-      expectedStatus: 401,
-      details: `Response: ${JSON.stringify(res8.data)}`,
+      expectedStatus: 200,
+      details: `Returned user: id=${res8.data?.user?.id}, email=${res8.data?.user?.email}, role=${res8.data?.user?.role}`,
     });
     console.log(pass8 ? "✅ Test 8 PASSED" : `❌ Test 8 FAILED: ${JSON.stringify(res8.data)}`);
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TEST 9: requireRole blocks non-Admin user from /auth/admin-test -> 403
+    // TEST 9: GET /auth/me with NO token -> 401
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("\n--- Test 9: requireRole blocks AUTHOR user from ADMIN endpoint ---");
-    const res9 = await makeRequest(serverUrl, "/auth/admin-test", "GET", {
-      Authorization: `Bearer ${currentAccessToken}`,
-    });
-    const pass9 = res9.status === 403 && res9.data?.status === "error";
+    console.log("\n--- Test 9: GET /auth/me without token is rejected ---");
+    const res9 = await makeRequest(serverUrl, "/auth/me", "GET");
+    const pass9 = res9.status === 401 && res9.data?.status === "error";
 
     results.push({
       num: 9,
-      name: "requireRole blocks AUTHOR user from ADMIN-only route with 403",
+      name: "GET /auth/me without authorization header returns 401",
       passed: pass9,
       status: res9.status,
-      expectedStatus: 403,
+      expectedStatus: 401,
       details: `Response: ${JSON.stringify(res9.data)}`,
     });
     console.log(pass9 ? "✅ Test 9 PASSED" : `❌ Test 9 FAILED: ${JSON.stringify(res9.data)}`);
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TEST 10: POST /auth/refresh with valid refresh token -> new access token
+    // TEST 10: GET /auth/me with INVALID token -> 401
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("\n--- Test 10: Refresh token yields new access token ---");
-    const res10 = await makeRequest(serverUrl, "/auth/refresh", "POST", {}, {
-      refreshToken: currentRefreshToken,
+    console.log("\n--- Test 10: GET /auth/me with invalid token is rejected ---");
+    const res10 = await makeRequest(serverUrl, "/auth/me", "GET", {
+      Authorization: "Bearer invalid.token.value",
     });
-    const pass10 =
-      res10.status === 200 &&
-      res10.data?.status === "ok" &&
-      typeof res10.data?.accessToken === "string";
+    const pass10 = res10.status === 401 && res10.data?.status === "error";
 
     results.push({
       num: 10,
-      name: "POST /auth/refresh issues new access token from valid refresh token",
+      name: "GET /auth/me with invalid/malformed token returns 401",
       passed: pass10,
       status: res10.status,
-      expectedStatus: 200,
-      details: `New access token received: ${Boolean(res10.data?.accessToken)}`,
+      expectedStatus: 401,
+      details: `Response: ${JSON.stringify(res10.data)}`,
     });
     console.log(pass10 ? "✅ Test 10 PASSED" : `❌ Test 10 FAILED: ${JSON.stringify(res10.data)}`);
 
-    if (res10.data?.accessToken) {
-      currentAccessToken = res10.data.accessToken;
-    }
-
     // ──────────────────────────────────────────────────────────────────────────
-    // TEST 11: POST /auth/logout -> revokes refresh token
+    // TEST 11: requireRole blocks non-Admin user from POST /users -> 403
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("\n--- Test 11: Logout revokes refresh token ---");
-    const res11 = await makeRequest(serverUrl, "/auth/logout", "POST", {}, {
-      refreshToken: currentRefreshToken,
-    });
-    const pass11 =
-      res11.status === 200 &&
-      res11.data?.status === "ok" &&
-      res11.data?.message === "Logged out";
+    console.log("\n--- Test 11: requireRole blocks AUTHOR user from ADMIN-only /users route ---");
+    const res11 = await makeRequest(
+      serverUrl,
+      "/users",
+      "POST",
+      { Authorization: `Bearer ${currentAccessToken}` },
+      { email: "irrelevant@test.local", password: "irrelevant123", role: "VIEWER" }
+    );
+    const pass11 = res11.status === 403 && res11.data?.status === "error";
 
     results.push({
       num: 11,
-      name: "POST /auth/logout revokes refresh token",
+      name: "requireRole blocks AUTHOR user from ADMIN-only route with 403",
       passed: pass11,
       status: res11.status,
-      expectedStatus: 200,
-      details: `Response message: "${res11.data?.message}"`,
+      expectedStatus: 403,
+      details: `Response: ${JSON.stringify(res11.data)}`,
     });
     console.log(pass11 ? "✅ Test 11 PASSED" : `❌ Test 11 FAILED: ${JSON.stringify(res11.data)}`);
 
     // ──────────────────────────────────────────────────────────────────────────
-    // TEST 12: Subsequent /auth/refresh with revoked token -> 401
+    // TEST 12: POST /auth/refresh rotates the refresh token (issues BOTH a new
+    // access token and a new refresh token, and revokes the presented one).
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("\n--- Test 12: Refresh with revoked token is rejected ---");
+    console.log("\n--- Test 12: Refresh token rotates on use ---");
+    const preRotationRefreshToken = currentRefreshToken;
     const res12 = await makeRequest(serverUrl, "/auth/refresh", "POST", {}, {
-      refreshToken: currentRefreshToken,
+      refreshToken: preRotationRefreshToken,
     });
-    const pass12 = res12.status === 401 && res12.data?.status === "error";
+    const pass12 =
+      res12.status === 200 &&
+      res12.data?.status === "ok" &&
+      typeof res12.data?.accessToken === "string" &&
+      typeof res12.data?.refreshToken === "string" &&
+      res12.data?.refreshToken !== preRotationRefreshToken;
 
     results.push({
       num: 12,
-      name: "POST /auth/refresh with revoked token is rejected with 401",
+      name: "POST /auth/refresh rotates: returns a new access AND refresh token pair",
       passed: pass12,
       status: res12.status,
-      expectedStatus: 401,
-      details: `Response: ${JSON.stringify(res12.data)}`,
+      expectedStatus: 200,
+      details: `New accessToken: ${Boolean(res12.data?.accessToken)}, new refreshToken differs from presented one: ${res12.data?.refreshToken !== preRotationRefreshToken}`,
     });
     console.log(pass12 ? "✅ Test 12 PASSED" : `❌ Test 12 FAILED: ${JSON.stringify(res12.data)}`);
+
+    if (res12.data?.accessToken) currentAccessToken = res12.data.accessToken;
+    const rotatedRefreshToken = res12.data?.refreshToken;
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // TEST 13 (REGRESSION): replaying the pre-rotation refresh token (now
+    // revoked by Test 12's rotation) must trigger reuse detection, not just a
+    // generic "revoked" rejection.
+    // ──────────────────────────────────────────────────────────────────────────
+    console.log("\n--- Test 13 (REGRESSION): replayed pre-rotation refresh token triggers reuse detection ---");
+    const res13 = await makeRequest(serverUrl, "/auth/refresh", "POST", {}, {
+      refreshToken: preRotationRefreshToken,
+    });
+    const pass13 = res13.status === 401 && res13.data?.status === "error";
+
+    results.push({
+      num: 13,
+      name: "REGRESSION: replayed (already-rotated) refresh token is rejected with 401",
+      passed: pass13,
+      status: res13.status,
+      expectedStatus: 401,
+      details: `Response: ${JSON.stringify(res13.data)}`,
+    });
+    console.log(pass13 ? "✅ Test 13 PASSED" : `❌ Test 13 FAILED: ${JSON.stringify(res13.data)}`);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // TEST 14 (REGRESSION): Test 13's reuse detection must have cascaded to
+    // revoke every live token for the user — including the token Test 12's
+    // rotation just issued, even though it was never itself replayed. This is
+    // the actual security property: a stolen-and-replayed token invalidates
+    // the whole session family, so the legitimate holder is also forced to
+    // re-authenticate rather than the attacker quietly keeping access.
+    // ──────────────────────────────────────────────────────────────────────────
+    console.log("\n--- Test 14 (REGRESSION): reuse detection cascades to revoke the whole token family ---");
+    const res14 = await makeRequest(serverUrl, "/auth/refresh", "POST", {}, {
+      refreshToken: rotatedRefreshToken,
+    });
+    const pass14 = res14.status === 401 && res14.data?.status === "error";
+
+    results.push({
+      num: 14,
+      name: "REGRESSION: reuse detection revoked the entire token family, not just the replayed token",
+      passed: pass14,
+      status: res14.status,
+      expectedStatus: 401,
+      details: `Response: ${JSON.stringify(res14.data)}`,
+    });
+    console.log(pass14 ? "✅ Test 14 PASSED" : `❌ Test 14 FAILED: ${JSON.stringify(res14.data)}`);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // TEST 15: POST /auth/logout revokes refresh token. The token family was
+    // fully revoked by Test 14, so a fresh session is established first.
+    // ──────────────────────────────────────────────────────────────────────────
+    console.log("\n--- Test 15: Logout revokes refresh token ---");
+    const freshLoginRes = await makeRequest(serverUrl, "/auth/login", "POST", {}, {
+      email: testEmail,
+      password: rawPassword,
+    });
+    const freshVerifyRes = await makeRequest(serverUrl, "/auth/mfa/verify", "POST", {}, {
+      challengeToken: freshLoginRes.data?.challengeToken,
+      code: generateSync({ secret: mfaSecret }),
+    });
+    const logoutTargetRefreshToken = freshVerifyRes.data?.refreshToken;
+
+    const res15 = await makeRequest(serverUrl, "/auth/logout", "POST", {}, {
+      refreshToken: logoutTargetRefreshToken,
+    });
+    const pass15 =
+      res15.status === 200 &&
+      res15.data?.status === "ok" &&
+      res15.data?.message === "Logged out";
+
+    results.push({
+      num: 15,
+      name: "POST /auth/logout revokes refresh token",
+      passed: pass15,
+      status: res15.status,
+      expectedStatus: 200,
+      details: `Response message: "${res15.data?.message}"`,
+    });
+    console.log(pass15 ? "✅ Test 15 PASSED" : `❌ Test 15 FAILED: ${JSON.stringify(res15.data)}`);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // TEST 16: Subsequent /auth/refresh with the logged-out token -> 401
+    // ──────────────────────────────────────────────────────────────────────────
+    console.log("\n--- Test 16: Refresh with logged-out token is rejected ---");
+    const res16 = await makeRequest(serverUrl, "/auth/refresh", "POST", {}, {
+      refreshToken: logoutTargetRefreshToken,
+    });
+    const pass16 = res16.status === 401 && res16.data?.status === "error";
+
+    results.push({
+      num: 16,
+      name: "POST /auth/refresh with logged-out token is rejected with 401",
+      passed: pass16,
+      status: res16.status,
+      expectedStatus: 401,
+      details: `Response: ${JSON.stringify(res16.data)}`,
+    });
+    console.log(pass16 ? "✅ Test 16 PASSED" : `❌ Test 16 FAILED: ${JSON.stringify(res16.data)}`);
   } catch (err: any) {
     console.error("❌ Unexpected test execution error:", err);
   } finally {
     console.log("\n🧹 Cleaning up test data & stopping test server...");
     if (testUserId) {
+      await prisma.refreshToken.deleteMany({ where: { userId: testUserId } }).catch(() => {});
       await prisma.user.delete({ where: { id: testUserId } }).catch(() => {});
     }
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -392,8 +524,8 @@ async function main() {
   }
 
   console.log("\n--------------------------------------------------");
-  if (allPassed && results.length === 12) {
-    console.log(`🎉 ALL ${results.length}/12 AUTHENTICATION & RBAC TESTS PASSED`);
+  if (allPassed && results.length === TOTAL_TESTS) {
+    console.log(`🎉 ALL ${results.length}/${TOTAL_TESTS} AUTHENTICATION & RBAC TESTS PASSED`);
     console.log("--------------------------------------------------\n");
   } else {
     console.error(`🚨 TEST FAILURES DETECTED: Passed ${results.filter((r) => r.passed).length}/${results.length}`);
