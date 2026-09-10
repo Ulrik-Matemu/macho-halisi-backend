@@ -69,4 +69,11 @@ export const publicItineraryDetailSelect = {
       destination: { select: { id: true, name: true, slug: true } },
     },
   },
+  // Detail-page-only supplementary calendar detail — deliberately not on
+  // publicItinerarySummarySelect above, so the list/card endpoint never
+  // carries it.
+  availabilityPeriods: {
+    orderBy: { startDate: "asc" as const },
+    select: { id: true, startDate: true, endDate: true, status: true, note: true },
+  },
 } as const;

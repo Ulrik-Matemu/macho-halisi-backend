@@ -93,6 +93,18 @@ export const addImageSchema = z.object({
   altText: z.string().trim().optional().nullable(),
 });
 
+export const availabilityPeriodInputSchema = z
+  .object({
+    startDate: z.coerce.date({ message: "startDate must be a valid date" }),
+    endDate: z.coerce.date({ message: "endDate must be a valid date" }),
+    status: z.nativeEnum(AvailabilityStatus),
+    note: z.string().trim().max(280, "Note must be 280 characters or fewer").optional().nullable(),
+  })
+  .refine((data) => data.endDate >= data.startDate, {
+    message: "End date must be on or after the start date",
+    path: ["endDate"],
+  });
+
 export const itineraryQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
@@ -103,3 +115,4 @@ export type CreateItineraryInput = z.infer<typeof createItinerarySchema>;
 export type UpdateItineraryInput = z.infer<typeof updateItinerarySchema>;
 export type AddImageInput = z.infer<typeof addImageSchema>;
 export type ItineraryQueryParams = z.infer<typeof itineraryQuerySchema>;
+export type AvailabilityPeriodInput = z.infer<typeof availabilityPeriodInputSchema>;

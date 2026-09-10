@@ -10,6 +10,7 @@ import {
   updateItinerarySchema,
   addImageSchema,
   itineraryQuerySchema,
+  availabilityPeriodInputSchema,
 } from "./itineraries.schemas.js";
 
 export const itinerariesRouter = Router();
@@ -89,6 +90,7 @@ itinerariesRouter.get("/:id", async (req, res, next) => {
             },
           },
         },
+        availabilityPeriods: { orderBy: { startDate: "asc" } },
         author: { select: { id: true, email: true, role: true } },
         editor: { select: { id: true, email: true, role: true } },
       },
@@ -177,6 +179,7 @@ itinerariesRouter.post(
               },
             },
           },
+          availabilityPeriods: { orderBy: { startDate: "asc" } },
           author: { select: { id: true, email: true, role: true } },
           editor: { select: { id: true, email: true, role: true } },
         },
@@ -298,6 +301,7 @@ itinerariesRouter.put(
                 },
               },
             },
+            availabilityPeriods: { orderBy: { startDate: "asc" } },
             author: { select: { id: true, email: true, role: true } },
             editor: { select: { id: true, email: true, role: true } },
           },
@@ -373,6 +377,7 @@ itinerariesRouter.patch(
               },
             },
           },
+          availabilityPeriods: { orderBy: { startDate: "asc" } },
           author: { select: { id: true, email: true, role: true } },
           editor: { select: { id: true, email: true, role: true } },
         },
@@ -418,6 +423,7 @@ itinerariesRouter.patch(
               },
             },
           },
+          availabilityPeriods: { orderBy: { startDate: "asc" } },
           author: { select: { id: true, email: true, role: true } },
           editor: { select: { id: true, email: true, role: true } },
         },
@@ -539,6 +545,139 @@ itinerariesRouter.delete(
       res.json({
         status: "ok",
         message: "Image removed successfully",
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── 10. POST /itineraries/:id/availability-periods — Add a dated
+// availability period ───────────────────────────────────────────
+// Supplementary calendar detail only — Itinerary.availabilityStatus
+// remains the single, manually set badge shown on cards and the
+// detail-page sidebar. These periods are managed as their own
+// dedicated resource (create/update/delete below), the same pattern
+// as gallery images above — not folded into the PUT /:id autosave
+// payload, which would mean replacing the whole list on every save.
+itinerariesRouter.post(
+  "/:id/availability-periods",
+  requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
+  async (req, res, next) => {
+    try {
+      const itineraryId = req.params.id as string;
+      const existing = await prisma.itinerary.findUnique({ where: { id: itineraryId } });
+
+      if (!existing) {
+        res.status(404).json({ status: "error", message: "Itinerary not found" });
+        return;
+      }
+
+      const parseResult = availabilityPeriodInputSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          status: "error",
+          message: "Validation failed",
+          errors: parseResult.error.flatten(),
+        });
+        return;
+      }
+
+      const input = parseResult.data;
+      const period = await prisma.availabilityPeriod.create({
+        data: {
+          itineraryId,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          status: input.status,
+          note: input.note || null,
+        },
+      });
+
+      res.status(201).json({
+        status: "ok",
+        period,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── 11. PATCH /itineraries/:id/availability-periods/:periodId —
+// Update a dated availability period ────────────────────────────
+itinerariesRouter.patch(
+  "/:id/availability-periods/:periodId",
+  requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
+  async (req, res, next) => {
+    try {
+      const itineraryId = req.params.id as string;
+      const periodId = req.params.periodId as string;
+
+      const existingPeriod = await prisma.availabilityPeriod.findFirst({
+        where: { id: periodId, itineraryId },
+      });
+
+      if (!existingPeriod) {
+        res.status(404).json({ status: "error", message: "Availability period not found on this itinerary" });
+        return;
+      }
+
+      const parseResult = availabilityPeriodInputSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          status: "error",
+          message: "Validation failed",
+          errors: parseResult.error.flatten(),
+        });
+        return;
+      }
+
+      const input = parseResult.data;
+      const period = await prisma.availabilityPeriod.update({
+        where: { id: periodId },
+        data: {
+          startDate: input.startDate,
+          endDate: input.endDate,
+          status: input.status,
+          note: input.note || null,
+        },
+      });
+
+      res.json({
+        status: "ok",
+        period,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── 12. DELETE /itineraries/:id/availability-periods/:periodId —
+// Remove a dated availability period ─────────────────────────────
+itinerariesRouter.delete(
+  "/:id/availability-periods/:periodId",
+  requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
+  async (req, res, next) => {
+    try {
+      const itineraryId = req.params.id as string;
+      const periodId = req.params.periodId as string;
+
+      const existingPeriod = await prisma.availabilityPeriod.findFirst({
+        where: { id: periodId, itineraryId },
+      });
+
+      if (!existingPeriod) {
+        res.status(404).json({ status: "error", message: "Availability period not found on this itinerary" });
+        return;
+      }
+
+      await prisma.availabilityPeriod.delete({ where: { id: periodId } });
+
+      res.json({
+        status: "ok",
+        message: "Availability period removed successfully",
       });
     } catch (err) {
       next(err);

@@ -113,12 +113,13 @@ model Itinerary {
   updatedAt          DateTime           @updatedAt
 
   // Relations
-  author       User                   @relation("author", fields: [authorId], references: [id])
-  editor       User?                  @relation("editor", fields: [editorId], references: [id])
-  days         ItineraryDay[]
-  images       ItineraryImage[]
-  destinations ItineraryDestination[]
-  enquiries    Enquiry[]
+  author              User                   @relation("author", fields: [authorId], references: [id])
+  editor              User?                  @relation("editor", fields: [editorId], references: [id])
+  days                ItineraryDay[]
+  images              ItineraryImage[]
+  destinations        ItineraryDestination[]
+  enquiries           Enquiry[]
+  availabilityPeriods AvailabilityPeriod[]
 
   // Backs GET /public/itineraries: filter by status = PUBLISHED, order by
   // publishedAt desc.
@@ -155,6 +156,31 @@ model ItineraryImage {
   itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
 
   @@map("itinerary_images")
+}
+
+/// Seasonal / date-based availability detail for an itinerary — distinct
+/// from Itinerary.availabilityStatus, which remains the single, manually
+/// set badge shown on cards and the detail-page sidebar. These periods are
+/// supplementary calendar detail shown only on the itinerary detail page
+/// (e.g. "Jun 1 - Oct 31: Available - peak migration season").
+///
+/// Application-level rule (NOT enforced as a DB constraint): endDate must
+/// be on or after startDate. Enforce in route-level Zod validation.
+model AvailabilityPeriod {
+  id          String             @id @default(uuid()) @db.Uuid
+  itineraryId String             @db.Uuid
+  startDate   DateTime           @db.Date
+  endDate     DateTime           @db.Date
+  status      AvailabilityStatus
+  note        String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Relations
+  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+
+  @@index([itineraryId, startDate])
+  @@map("availability_periods")
 }
 
 model ItineraryDestination {
