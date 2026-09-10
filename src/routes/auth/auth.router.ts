@@ -13,7 +13,6 @@ import {
 } from "../../lib/tokens.js";
 import { generateMfaSecret, verifyMfaCode, generateQrCodeDataUrl } from "../../lib/mfa.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
-import { requireRole } from "../../middleware/requireRole.js";
 import {
   loginSchema,
   mfaVerifySchema,
@@ -307,13 +306,4 @@ authRouter.get("/me", requireAuth, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
-
-// Temporary Admin-only test route to verify requireRole
-authRouter.get("/admin-test", requireAuth, requireRole(Role.ADMIN), (req, res) => {
-  res.json({
-    status: "ok",
-    message: "Admin access confirmed",
-    user: req.user,
-  });
 });
