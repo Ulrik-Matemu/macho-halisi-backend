@@ -120,6 +120,9 @@ model Itinerary {
   destinations ItineraryDestination[]
   enquiries    Enquiry[]
 
+  // Backs GET /public/itineraries: filter by status = PUBLISHED, order by
+  // publishedAt desc.
+  @@index([status, publishedAt])
   @@map("itineraries")
 }
 

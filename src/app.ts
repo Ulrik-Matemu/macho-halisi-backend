@@ -4,6 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import { env } from "./config/env.js";
 import { healthRouter } from "./routes/health/index.js";
+import { publicRouter } from "./routes/public/index.js";
 import { authRouter } from "./routes/auth/index.js";
 import { usersRouter } from "./routes/users/index.js";
 import { itinerariesRouter } from "./routes/itineraries/index.js";
@@ -27,6 +28,9 @@ export function createApp() {
 
   // ── Routes ───────────────────────────────────
   app.use("/health", healthRouter);
+  // Unauthenticated public routes — mounted first and deliberately never
+  // pass through requireAuth, unlike every other router below.
+  app.use("/public", publicRouter);
   app.use("/auth", authRouter);
   app.use("/users", usersRouter);
   app.use("/itineraries", itinerariesRouter);
