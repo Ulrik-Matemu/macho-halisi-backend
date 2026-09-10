@@ -9,6 +9,16 @@
 // includes can never silently leak into the public API — it would have to
 // be added to this allowlist on purpose.
 
+// Shared between summary and detail: both render availability periods (the
+// homepage/grid cards show a single computed "current or next" period,
+// picked client-side from this same full array; the detail page shows all
+// of them). Period counts per itinerary are small, so sending the full
+// array to the list endpoint too is not a real payload concern.
+const availabilityPeriodsSelect = {
+  orderBy: { startDate: "asc" as const },
+  select: { id: true, startDate: true, endDate: true, status: true, note: true },
+} as const;
+
 export const publicItinerarySummarySelect = {
   id: true,
   title: true,
@@ -30,6 +40,7 @@ export const publicItinerarySummarySelect = {
       destination: { select: { id: true, name: true, slug: true } },
     },
   },
+  availabilityPeriods: availabilityPeriodsSelect,
 } as const;
 
 export const publicItineraryDetailSelect = {
@@ -69,11 +80,5 @@ export const publicItineraryDetailSelect = {
       destination: { select: { id: true, name: true, slug: true } },
     },
   },
-  // Detail-page-only supplementary calendar detail — deliberately not on
-  // publicItinerarySummarySelect above, so the list/card endpoint never
-  // carries it.
-  availabilityPeriods: {
-    orderBy: { startDate: "asc" as const },
-    select: { id: true, startDate: true, endDate: true, status: true, note: true },
-  },
+  availabilityPeriods: availabilityPeriodsSelect,
 } as const;

@@ -268,22 +268,29 @@ async function main() {
     console.log(pass7 ? "✅ Test 7 PASSED" : `❌ Test 7 FAILED: ${JSON.stringify(res7.data)}`);
 
     // ──────────────────────────────────────────────────────────────
-    // TEST 8 (REGRESSION): public LIST endpoint never carries periods
+    // TEST 8: public LIST endpoint also carries periods (summary/detail
+    // parity — deliberately reversed from the original design, which kept
+    // this endpoint period-free; the homepage/grid cards now need it to
+    // compute a compact "current or next" line client-side).
     // ──────────────────────────────────────────────────────────────
-    console.log("\n--- Test 8 (REGRESSION): public list endpoint does NOT carry availabilityPeriods ---");
+    console.log("\n--- Test 8: public list endpoint includes availabilityPeriods (summary/detail parity) ---");
     const res8 = await makeRequest(serverUrl, `/public/itineraries?limit=50`, "GET");
-    const rawList = JSON.stringify(res8.data);
-    const pass8 = res8.status === 200 && !rawList.includes("availabilityPeriods");
+    const listEntry = (res8.data?.data || []).find((i: any) => i.id === itinerary.id);
+    const pass8 =
+      res8.status === 200 &&
+      Array.isArray(listEntry?.availabilityPeriods) &&
+      listEntry.availabilityPeriods.length === 1 &&
+      listEntry.availabilityPeriods[0].note === "Fewer camps open now";
 
     results.push({
       num: 8,
-      name: "REGRESSION: availabilityPeriods absent from /public/itineraries (summary) response",
+      name: "GET /public/itineraries (summary) includes availabilityPeriods per itinerary",
       passed: pass8,
       status: res8.status,
       expectedStatus: 200,
-      details: `Contains "availabilityPeriods": ${rawList.includes("availabilityPeriods")}`,
+      details: `availabilityPeriods on list entry: ${JSON.stringify(listEntry?.availabilityPeriods)}`,
     });
-    console.log(pass8 ? "✅ Test 8 PASSED" : "❌ Test 8 FAILED: summary endpoint leaked availabilityPeriods");
+    console.log(pass8 ? "✅ Test 8 PASSED" : `❌ Test 8 FAILED: ${JSON.stringify(listEntry)}`);
 
     // ──────────────────────────────────────────────────────────────
     // TEST 9: DELETE removes the period
