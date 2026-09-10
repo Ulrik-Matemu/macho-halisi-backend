@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  EDITOR
+  AUTHOR
+  VIEWER
+}
+
+enum ItineraryStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  LIMITED
+  FULLY_BOOKED
+}
+
+enum EnquiryStatus {
+  NEW
+  IN_PROGRESS
+  RESPONDED
+  CLOSED
+}
+
+// ─── Models ────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(VIEWER)
+  mfaSecret    String?
+  mfaEnabled   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  authoredItineraries Itinerary[]    @relation("author")
+  editedItineraries   Itinerary[]    @relation("editor")
+  refreshTokens       RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Destination {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  itineraries ItineraryDestination[]
+
+  @@map("destinations")
+}
+
+/// The core package/itinerary entity.
+///
+/// Application-level rule (NOT enforced as a DB constraint):
+///   When priceOnRequest = true, startingPrice is expected to be null.
+///   When priceOnRequest = false, startingPrice should be set.
+///   Enforce this in route-level Zod validation, not here.
+model Itinerary {
+  id                 String             @id @default(uuid()) @db.Uuid
+  title              String
+  slug               String             @unique
+  status             ItineraryStatus    @default(DRAFT)
+  authorId           String             @db.Uuid
+  editorId           String?            @db.Uuid
+  overview           String?            @db.Text
+  nights             Int?
+  startingPrice      Decimal?           @db.Decimal(10, 2)
+  priceOnRequest     Boolean            @default(false)
+  inclusions         String[]
+  exclusions         String[]
+  travelInfo         String?            @db.Text
+  routeMapUrl        String?
+  availabilityStatus AvailabilityStatus @default(AVAILABLE)
+  publishedAt        DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relations
+  author       User                   @relation("author", fields: [authorId], references: [id])
+  editor       User?                  @relation("editor", fields: [editorId], references: [id])
+  days         ItineraryDay[]
+  images       ItineraryImage[]
+  destinations ItineraryDestination[]
+  enquiries    Enquiry[]
+
+  @@map("itineraries")
+}
+
+model ItineraryDay {
+  id            String   @id @default(uuid()) @db.Uuid
+  itineraryId   String   @db.Uuid
+  dayNumber     Int
+  title         String?
+  description   String?  @db.Text
+  accommodation String?
+  activities    String[]
+
+  // Relations
+  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+
+  @@unique([itineraryId, dayNumber])
+  @@map("itinerary_days")
+}
+
+model ItineraryImage {
+  id                 String   @id @default(uuid()) @db.Uuid
+  itineraryId        String   @db.Uuid
+  url                String
+  cloudinaryPublicId String?
+  sortOrder          Int      @default(0)
+  altText            String?
+  createdAt          DateTime @default(now())
+
+  // Relations
+  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+
+  @@map("itinerary_images")
+}
+
+model ItineraryDestination {
+  itineraryId   String @db.Uuid
+  destinationId String @db.Uuid
+
+  // Relations
+  itinerary   Itinerary   @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@id([itineraryId, destinationId])
+  @@map("itinerary_destinations")
+}
+
+model Enquiry {
+  id             String        @id @default(uuid()) @db.Uuid
+  name           String
+  email          String
+  phone          String
+  itineraryId    String?       @db.Uuid
+  partySize      String?
+  preferredDates String?
+  message        String?       @db.Text
+  status         EnquiryStatus @default(NEW)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  itinerary Itinerary? @relation(fields: [itineraryId], references: [id])
+
+  @@map("enquiries")
+}
