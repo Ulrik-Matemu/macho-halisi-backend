@@ -37,7 +37,7 @@ export const publicItinerarySummarySelect = {
   },
   destinations: {
     select: {
-      destination: { select: { id: true, name: true, slug: true } },
+      destination: { select: { id: true, name: true, slug: true, latitude: true, longitude: true, blurb: true } },
     },
   },
   availabilityPeriods: availabilityPeriodsSelect,
@@ -56,6 +56,7 @@ export const publicItineraryDetailSelect = {
   exclusions: true,
   travelInfo: true,
   routeMapUrl: true,
+  showRouteMap: true,
   availabilityStatus: true,
   publishedAt: true,
   createdAt: true,
@@ -69,6 +70,10 @@ export const publicItineraryDetailSelect = {
       description: true,
       accommodation: true,
       activities: true,
+      latitude: true,
+      longitude: true,
+      highlight: true,
+      heroImage: { select: { id: true, url: true, altText: true } },
     },
   },
   images: {
@@ -77,7 +82,7 @@ export const publicItineraryDetailSelect = {
   },
   destinations: {
     select: {
-      destination: { select: { id: true, name: true, slug: true } },
+      destination: { select: { id: true, name: true, slug: true, latitude: true, longitude: true, blurb: true } },
     },
   },
   availabilityPeriods: availabilityPeriodsSelect,

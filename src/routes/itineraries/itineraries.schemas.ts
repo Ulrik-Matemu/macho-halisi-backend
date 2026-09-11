@@ -7,6 +7,13 @@ export const dayInputSchema = z.object({
   description: z.string().trim().optional().nullable(),
   accommodation: z.string().trim().optional().nullable(),
   activities: z.array(z.string().trim()).default([]),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+  // Must reference one of this itinerary's own images — checked in the
+  // route handler against the itinerary's current image set, since Zod
+  // alone can't validate a cross-record reference.
+  heroImageId: z.string().uuid("Invalid image ID format").optional().nullable(),
+  highlight: z.boolean().default(false),
 });
 
 export const imageInputSchema = z.object({
@@ -28,6 +35,7 @@ export const createItinerarySchema = z
     exclusions: z.array(z.string().trim()).default([]),
     travelInfo: z.string().trim().optional().nullable(),
     routeMapUrl: z.string().url().optional().nullable().or(z.literal("")),
+    showRouteMap: z.boolean().default(true),
     availabilityStatus: z.nativeEnum(AvailabilityStatus).default(AvailabilityStatus.AVAILABLE),
     days: z.array(dayInputSchema).default([]),
     destinationIds: z.array(z.string().uuid("Invalid destination ID format")).default([]),
@@ -68,6 +76,7 @@ export const updateItinerarySchema = z
     exclusions: z.array(z.string().trim()).optional(),
     travelInfo: z.string().trim().optional().nullable(),
     routeMapUrl: z.string().url().optional().nullable().or(z.literal("")),
+    showRouteMap: z.boolean().optional(),
     availabilityStatus: z.nativeEnum(AvailabilityStatus).optional(),
     days: z.array(dayInputSchema).optional(),
     destinationIds: z.array(z.string().uuid("Invalid destination ID format")).optional(),
