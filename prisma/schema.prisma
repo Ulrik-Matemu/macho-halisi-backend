@@ -45,15 +45,17 @@ model User {
   role             Role      @default(VIEWER)
   mfaSecret        String?
   mfaEnabled       Boolean   @default(false)
+  isActive         Boolean   @default(true)
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   // Relations
-  authoredItineraries Itinerary[]    @relation("author")
-  editedItineraries   Itinerary[]    @relation("editor")
+  authoredItineraries Itinerary[]         @relation("author")
+  editedItineraries   Itinerary[]         @relation("editor")
   refreshTokens       RefreshToken[]
+  itineraryRevisions  ItineraryRevision[]
 
   @@map("users")
 }
@@ -76,6 +78,14 @@ model Destination {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
   slug      String   @unique
+  // Optional map pin for this destination — nullable so existing
+  // destinations keep working with no pin until an admin fills them in via
+  // the destinations catalog page. Used as the fallback pin for any day
+  // linked to this destination that has no coordinates of its own.
+  latitude  Float?
+  longitude Float?
+  // Short line shown in the map popup, e.g. "Home to the Great Migration".
+  blurb     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -106,6 +116,10 @@ model Itinerary {
   exclusions         String[]
   travelInfo         String?            @db.Text
   routeMapUrl        String?
+  // Admin-facing control: hide the interactive journey map for this
+  // itinerary (e.g. geo data isn't ready yet) without touching routeMapUrl,
+  // which remains the external-link fallback regardless of this flag.
+  showRouteMap       Boolean            @default(true)
   availabilityStatus AvailabilityStatus @default(AVAILABLE)
   publishedAt        DateTime?
   expiresAt          DateTime?
@@ -120,6 +134,11 @@ model Itinerary {
   destinations        ItineraryDestination[]
   enquiries           Enquiry[]
   availabilityPeriods AvailabilityPeriod[]
+  // Unpublished edits awaiting admin review — see PUT /:id, which writes
+  // here instead of the scalar/days/destinations fields above once this
+  // itinerary is PUBLISHED, and PATCH /:id/publish-changes, which applies
+  // it and clears it.
+  pendingRevision     ItineraryRevision?
 
   // Backs GET /public/itineraries: filter by status = PUBLISHED, order by
   // publishedAt desc.
@@ -135,9 +154,23 @@ model ItineraryDay {
   description   String?  @db.Text
   accommodation String?
   activities    String[]
+  // This day's own map pin — takes priority over its linked destination's
+  // centroid when both exist, so the route can trace the actual camp/stop
+  // rather than a national-park-sized blob. Nullable: falls back to
+  // destination coordinates, then to no pin at all.
+  latitude      Float?
+  longitude     Float?
+  // A specific gallery image for this day's story beat, overriding the
+  // index-cycling fallback (images[dayIndex % images.length]) used when
+  // this is unset.
+  heroImageId   String?  @db.Uuid
+  // "Signature moment" flag — editors use this to call out a day with
+  // distinct visual treatment on the public page.
+  highlight     Boolean  @default(false)
 
   // Relations
-  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  itinerary Itinerary       @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  heroImage ItineraryImage? @relation(fields: [heroImageId], references: [id], onDelete: SetNull)
 
   @@unique([itineraryId, dayNumber])
   @@map("itinerary_days")
@@ -153,7 +186,8 @@ model ItineraryImage {
   createdAt          DateTime @default(now())
 
   // Relations
-  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  itinerary  Itinerary      @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  dayHeroFor ItineraryDay[]
 
   @@map("itinerary_images")
 }
@@ -181,6 +215,28 @@ model AvailabilityPeriod {
 
   @@index([itineraryId, startDate])
   @@map("availability_periods")
+}
+
+/// A pending, unapplied edit to a PUBLISHED itinerary — the review-before-
+/// publish gate. `data` is a JSON snapshot validated against the same
+/// updateItinerarySchema the direct-write path uses; it is applied to the
+/// live Itinerary/ItineraryDay/ItineraryDestination rows (and this row
+/// deleted) only via PATCH /itineraries/:id/publish-changes. One itinerary
+/// has at most one pending revision at a time — later autosaves overwrite
+/// it rather than stacking up a history.
+model ItineraryRevision {
+  id          String   @id @default(uuid()) @db.Uuid
+  itineraryId String   @unique @db.Uuid
+  data        Json
+  editorId    String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  itinerary Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  editor    User      @relation(fields: [editorId], references: [id])
+
+  @@map("itinerary_revisions")
 }
 
 model ItineraryDestination {

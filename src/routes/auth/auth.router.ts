@@ -79,6 +79,14 @@ authRouter.post("/login", authLimiter, async (req, res, next) => {
       return;
     }
 
+    if (user && !user.isActive) {
+      res.status(403).json({
+        status: "error",
+        message: "This account has been deactivated. Contact an administrator.",
+      });
+      return;
+    }
+
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       if (user) {
         const failedLoginCount = user.failedLoginCount + 1;
