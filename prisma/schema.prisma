@@ -36,6 +36,24 @@ enum EnquiryStatus {
   CLOSED
 }
 
+enum AccommodationType {
+  HOTEL
+  LODGE
+  TENTED_CAMP
+  CAMP
+  HOSTEL
+  GUESTHOUSE
+  VILLA
+  RESORT
+}
+
+enum ServiceTier {
+  BUDGET
+  MID_RANGE
+  PREMIUM
+  LUXURY
+}
+
 // ─── Models ────────────────────────────────────────────────────
 
 model User {
@@ -52,10 +70,13 @@ model User {
   updatedAt        DateTime  @updatedAt
 
   // Relations
-  authoredItineraries Itinerary[]         @relation("author")
-  editedItineraries   Itinerary[]         @relation("editor")
-  refreshTokens       RefreshToken[]
-  itineraryRevisions  ItineraryRevision[]
+  authoredItineraries    Itinerary[]             @relation("author")
+  editedItineraries      Itinerary[]             @relation("editor")
+  refreshTokens          RefreshToken[]
+  itineraryRevisions     ItineraryRevision[]
+  authoredAccommodations Accommodation[]         @relation("accommodationAuthor")
+  editedAccommodations   Accommodation[]         @relation("accommodationEditor")
+  accommodationRevisions AccommodationRevision[]
 
   @@map("users")
 }
@@ -90,7 +111,8 @@ model Destination {
   updatedAt DateTime @updatedAt
 
   // Relations
-  itineraries ItineraryDestination[]
+  itineraries    ItineraryDestination[]
+  accommodations Accommodation[]
 
   @@map("destinations")
 }
@@ -268,4 +290,94 @@ model Enquiry {
   itinerary Itinerary? @relation(fields: [itineraryId], references: [id])
 
   @@map("enquiries")
+}
+
+/// A managed accommodation (hotel, camp, lodge, hostel, etc.) shown in the
+/// public accommodations catalog. Mirrors Itinerary's publishing lifecycle:
+/// it reuses ItineraryStatus (DRAFT → IN_REVIEW → PUBLISHED → ARCHIVED) and
+/// the same review-before-publish gate via AccommodationRevision.
+///
+/// Application-level rule (NOT enforced as a DB constraint):
+///   When priceOnRequest = true, pricePerNight is expected to be null.
+///   When priceOnRequest = false, pricePerNight should be set.
+///   Enforce this in route-level Zod validation, not here.
+model Accommodation {
+  id             String            @id @default(uuid()) @db.Uuid
+  name           String
+  slug           String            @unique
+  status         ItineraryStatus   @default(DRAFT)
+  type           AccommodationType
+  serviceTier    ServiceTier
+  // Quality-of-service star rating, 1–5. Nullable so unrated stays are
+  // possible; the 1–5 bound is enforced in route-level Zod validation.
+  starRating     Int?
+  // Human-readable location, e.g. "Central Serengeti, near Seronera".
+  locationText   String
+  // Optional map pin — powers the interactive map on the public detail page.
+  latitude       Float?
+  longitude      Float?
+  description    String?           @db.Text
+  amenities      String[]
+  pricePerNight  Decimal?          @db.Decimal(10, 2)
+  priceOnRequest Boolean           @default(false)
+  // Optional link into the shared Destination catalog (e.g. this lodge sits
+  // in Serengeti). SetNull so deleting a destination doesn't cascade-delete
+  // accommodations — they just lose the link.
+  destinationId  String?           @db.Uuid
+  authorId       String            @db.Uuid
+  editorId       String?           @db.Uuid
+  publishedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  // Relations
+  author          User                   @relation("accommodationAuthor", fields: [authorId], references: [id])
+  editor          User?                  @relation("accommodationEditor", fields: [editorId], references: [id])
+  destination     Destination?           @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+  images          AccommodationImage[]
+  // Unpublished edits awaiting admin review — see PUT /:id, which writes here
+  // instead of the live fields once this accommodation is PUBLISHED, and
+  // PATCH /:id/publish-changes, which applies it and clears it.
+  pendingRevision AccommodationRevision?
+
+  // Backs GET /public/accommodations: filter by status = PUBLISHED, order by
+  // publishedAt desc.
+  @@index([status, publishedAt])
+  @@map("accommodations")
+}
+
+model AccommodationImage {
+  id                 String   @id @default(uuid()) @db.Uuid
+  accommodationId    String   @db.Uuid
+  url                String
+  cloudinaryPublicId String?
+  sortOrder          Int      @default(0)
+  altText            String?
+  createdAt          DateTime @default(now())
+
+  // Relations
+  accommodation Accommodation @relation(fields: [accommodationId], references: [id], onDelete: Cascade)
+
+  @@map("accommodation_images")
+}
+
+/// A pending, unapplied edit to a PUBLISHED accommodation — the review-
+/// before-publish gate, mirroring ItineraryRevision. `data` is a JSON
+/// snapshot validated against the same updateAccommodationSchema the direct-
+/// write path uses; it is applied to the live Accommodation row (and this
+/// row deleted) only via PATCH /accommodations/:id/publish-changes. One
+/// accommodation has at most one pending revision at a time.
+model AccommodationRevision {
+  id              String   @id @default(uuid()) @db.Uuid
+  accommodationId String   @unique @db.Uuid
+  data            Json
+  editorId        String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  accommodation Accommodation @relation(fields: [accommodationId], references: [id], onDelete: Cascade)
+  editor        User          @relation(fields: [editorId], references: [id])
+
+  @@map("accommodation_revisions")
 }

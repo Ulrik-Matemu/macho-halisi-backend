@@ -71,3 +71,31 @@ export async function generateUniqueDestinationSlug(
   }
 }
 
+/**
+ * Generates a unique slug for an Accommodation.
+ * If the slug collides with an existing record (other than currentAccommodationId),
+ * a numeric suffix is appended: e.g. "serengeti-lodge-1", "serengeti-lodge-2".
+ */
+export async function generateUniqueAccommodationSlug(
+  name: string,
+  currentAccommodationId?: string
+): Promise<string> {
+  const baseSlug = slugify(name) || "accommodation";
+  let candidateSlug = baseSlug;
+  let counter = 1;
+
+  while (true) {
+    const existing = await prisma.accommodation.findUnique({
+      where: { slug: candidateSlug },
+      select: { id: true },
+    });
+
+    if (!existing || existing.id === currentAccommodationId) {
+      return candidateSlug;
+    }
+
+    candidateSlug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+}
+

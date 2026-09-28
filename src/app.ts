@@ -10,6 +10,7 @@ import { usersRouter } from "./routes/users/index.js";
 import { itinerariesRouter } from "./routes/itineraries/index.js";
 import { uploadsRouter } from "./routes/uploads/index.js";
 import { destinationsRouter } from "./routes/destinations/index.js";
+import { accommodationsRouter } from "./routes/accommodations/index.js";
 import { notFoundHandler } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
@@ -36,6 +37,7 @@ export function createApp() {
   app.use("/itineraries", itinerariesRouter);
   app.use("/uploads", uploadsRouter);
   app.use("/destinations", destinationsRouter);
+  app.use("/accommodations", accommodationsRouter);
 
   // ── Error handling (must be last) ────────────
   app.use(notFoundHandler);

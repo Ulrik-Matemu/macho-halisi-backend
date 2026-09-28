@@ -43,6 +43,60 @@ export const publicItinerarySummarySelect = {
   availabilityPeriods: availabilityPeriodsSelect,
 } as const;
 
+// ─── Accommodations ───────────────────────────────────────────────
+// Same principle as itineraries above: explicit allowlists so staff
+// identities (authorId/editorId/author/editor emails) can never leak into
+// the public API, even if a future field is added to the dashboard include.
+
+export const publicAccommodationSummarySelect = {
+  id: true,
+  name: true,
+  slug: true,
+  type: true,
+  serviceTier: true,
+  starRating: true,
+  locationText: true,
+  latitude: true,
+  longitude: true,
+  pricePerNight: true,
+  priceOnRequest: true,
+  publishedAt: true,
+  updatedAt: true,
+  images: {
+    orderBy: { sortOrder: "asc" as const },
+    take: 1,
+    select: { id: true, url: true, altText: true },
+  },
+  destination: { select: { id: true, name: true, slug: true } },
+} as const;
+
+export const publicAccommodationDetailSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  status: true,
+  type: true,
+  serviceTier: true,
+  starRating: true,
+  locationText: true,
+  latitude: true,
+  longitude: true,
+  description: true,
+  amenities: true,
+  pricePerNight: true,
+  priceOnRequest: true,
+  publishedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  images: {
+    orderBy: { sortOrder: "asc" as const },
+    select: { id: true, url: true, altText: true, sortOrder: true },
+  },
+  destination: {
+    select: { id: true, name: true, slug: true, latitude: true, longitude: true, blurb: true },
+  },
+} as const;
+
 export const publicItineraryDetailSelect = {
   id: true,
   title: true,
