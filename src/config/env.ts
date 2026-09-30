@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Blank (`FOO=`) is treated as unset rather than an invalid URL.
+const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional());
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -35,6 +38,11 @@ const envSchema = z.object({
   // Shared secret the GitHub Actions uptime cron sends as X-Monitor-Secret
   // on POST /monitoring/uptime.
   MONITOR_SECRET: z.string().min(32, "MONITOR_SECRET must be at least 32 characters — generate with `openssl rand -hex 32`"),
+  // Built-in uptime checker (src/lib/uptimeScheduler.ts). It only runs when
+  // UPTIME_SITE_URL is set, so local dev stays quiet by default. The API's
+  // own public URL defaults to Render's RENDER_EXTERNAL_URL.
+  UPTIME_SITE_URL: optionalUrl,
+  UPTIME_API_URL: optionalUrl,
 });
 
 export const env = envSchema.parse(process.env);
