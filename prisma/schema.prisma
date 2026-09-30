@@ -36,6 +36,21 @@ enum EnquiryStatus {
   CLOSED
 }
 
+enum AnalyticsEventType {
+  PAGEVIEW
+  EVENT
+  WEB_VITAL
+  JS_ERROR
+  PAGE_LEAVE
+}
+
+enum UptimeTarget {
+  SITE
+  PAGE
+  API
+  DATABASE
+}
+
 enum AccommodationType {
   HOTEL
   LODGE
@@ -77,6 +92,7 @@ model User {
   authoredAccommodations Accommodation[]         @relation("accommodationAuthor")
   editedAccommodations   Accommodation[]         @relation("accommodationEditor")
   accommodationRevisions AccommodationRevision[]
+  handledEnquiries       Enquiry[]               @relation("enquiryHandler")
 
   @@map("users")
 }
@@ -283,12 +299,32 @@ model Enquiry {
   preferredDates String?
   message        String?       @db.Text
   status         EnquiryStatus @default(NEW)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+
+  // Attribution captured at submission time — which form, which page, and
+  // where the visitor came from. sessionId joins back to AnalyticsEvent so
+  // the dashboard can show the pages viewed before enquiring.
+  source       String?
+  pagePath     String?
+  referrerHost String?
+  utmSource    String?
+  country      String?
+  city         String?
+  sessionId    String?
+
+  // Staff-side processing
+  staffNotes  String?   @db.Text
+  handledById String?   @db.Uuid
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   itinerary Itinerary? @relation(fields: [itineraryId], references: [id])
+  handledBy User?      @relation("enquiryHandler", fields: [handledById], references: [id], onDelete: SetNull)
 
+  // Backs the dashboard inbox: filter by status, newest first.
+  @@index([status, createdAt])
   @@map("enquiries")
 }
 
@@ -380,4 +416,83 @@ model AccommodationRevision {
   editor        User          @relation(fields: [editorId], references: [id])
 
   @@map("accommodation_revisions")
+}
+
+// ─── Monitoring & analytics ───────────────────────────────────
+
+/// One raw, cookieless analytics event from the public site. Written only
+/// via POST /analytics/ingest (shared-secret, called by the Next.js server,
+/// which resolves geo and hashes the IP — the raw IP is never stored).
+/// visitorHash rotates daily, so visitors can't be followed across days.
+model AnalyticsEvent {
+  id           String             @id @default(uuid()) @db.Uuid
+  type         AnalyticsEventType
+  // Custom event name (EVENT), vital name (WEB_VITAL) or error message
+  // (JS_ERROR). Null for PAGEVIEW / PAGE_LEAVE.
+  name         String?
+  path         String
+  referrer     String?
+  referrerHost String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  country      String?
+  region       String?
+  city         String?
+  device       String?
+  browser      String?
+  os           String?
+  visitorHash  String
+  sessionId    String
+  // Vital value (WEB_VITAL) or engaged milliseconds (PAGE_LEAVE).
+  value        Float?
+  metadata     Json?
+  createdAt    DateTime           @default(now())
+
+  @@index([createdAt])
+  @@index([type, createdAt])
+  @@index([sessionId])
+  @@map("analytics_events")
+}
+
+/// One probe result recorded by the external uptime cron (GitHub Actions)
+/// via POST /monitoring/uptime.
+model UptimeCheck {
+  id         String       @id @default(uuid()) @db.Uuid
+  target     UptimeTarget
+  url        String
+  ok         Boolean
+  statusCode Int?
+  latencyMs  Int?
+  error      String?
+  source     String       @default("github-actions")
+  checkedAt  DateTime     @default(now())
+
+  @@index([target, checkedAt])
+  @@index([checkedAt])
+  @@map("uptime_checks")
+}
+
+/// Per-minute aggregate of API request timings for one route group, flushed
+/// from memory by the requestMetrics middleware. The le100..gt1000 columns are a
+/// coarse latency histogram used to estimate p95 without storing every
+/// request.
+model ApiMetricBucket {
+  id               String   @id @default(uuid()) @db.Uuid
+  bucketStart      DateTime
+  routeGroup       String
+  method           String
+  count            Int      @default(0)
+  errorCount       Int      @default(0)
+  clientErrorCount Int      @default(0)
+  totalMs          Float    @default(0)
+  maxMs            Float    @default(0)
+  le100            Int      @default(0)
+  le300            Int      @default(0)
+  le1000           Int      @default(0)
+  gt1000           Int      @default(0)
+
+  @@unique([bucketStart, routeGroup, method])
+  @@index([bucketStart])
+  @@map("api_metric_buckets")
 }

@@ -22,6 +22,20 @@ export const publicEnquirySchema = z.object({
   partySize: z.string().trim().max(100).optional().nullable(),
   preferredDates: z.string().trim().max(200).optional().nullable(),
   message: z.string().trim().max(5000).optional().nullable(),
+
+  // Attribution — all optional, filled in by the website's enquiry forms
+  // and its /api/enquiries route (geo). Bounded so a crafted request can't
+  // bloat the row.
+  source: z.enum(["modal", "studio"]).optional().nullable(),
+  pagePath: z.string().trim().max(500).optional().nullable(),
+  referrerHost: z.string().trim().max(255).optional().nullable(),
+  utmSource: z.string().trim().max(100).optional().nullable(),
+  country: z.string().trim().max(2).optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  sessionId: z.string().trim().max(64).optional().nullable(),
+
+  // Honeypot — a visually hidden input real visitors never fill.
+  website: z.string().optional().nullable(),
 });
 
 export type PublicEnquiryInput = z.infer<typeof publicEnquirySchema>;

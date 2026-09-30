@@ -28,6 +28,13 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1, "CLOUDINARY_CLOUD_NAME is required"),
   CLOUDINARY_API_KEY: z.string().min(1, "CLOUDINARY_API_KEY is required"),
   CLOUDINARY_API_SECRET: z.string().min(1, "CLOUDINARY_API_SECRET is required"),
+  // Shared secret the Next.js server sends as X-Ingest-Secret when
+  // forwarding analytics events — the only writer allowed on
+  // POST /analytics/ingest.
+  ANALYTICS_INGEST_SECRET: z.string().min(32, "ANALYTICS_INGEST_SECRET must be at least 32 characters — generate with `openssl rand -hex 32`"),
+  // Shared secret the GitHub Actions uptime cron sends as X-Monitor-Secret
+  // on POST /monitoring/uptime.
+  MONITOR_SECRET: z.string().min(32, "MONITOR_SECRET must be at least 32 characters — generate with `openssl rand -hex 32`"),
 });
 
 export const env = envSchema.parse(process.env);

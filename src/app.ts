@@ -11,11 +11,19 @@ import { itinerariesRouter } from "./routes/itineraries/index.js";
 import { uploadsRouter } from "./routes/uploads/index.js";
 import { destinationsRouter } from "./routes/destinations/index.js";
 import { accommodationsRouter } from "./routes/accommodations/index.js";
+import { analyticsRouter } from "./routes/analytics/index.js";
+import { monitoringRouter } from "./routes/monitoring/index.js";
+import { enquiriesRouter } from "./routes/enquiries/index.js";
+import { requestMetrics, startRequestMetricsFlush } from "./middleware/requestMetrics.js";
 import { notFoundHandler } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 export function createApp() {
   const app = express();
+
+  // Render terminates TLS at one proxy hop — trust it so req.ip (and the
+  // per-IP rate limits keyed on it) see the real client, not the proxy.
+  app.set("trust proxy", 1);
 
   // ── Security & parsing ───────────────────────
   app.use(helmet());
@@ -26,6 +34,10 @@ export function createApp() {
   if (env.NODE_ENV === "development") {
     app.use(morgan("dev"));
   }
+
+  // ── Performance metrics ──────────────────────
+  app.use(requestMetrics);
+  startRequestMetricsFlush();
 
   // ── Routes ───────────────────────────────────
   app.use("/health", healthRouter);
@@ -38,6 +50,11 @@ export function createApp() {
   app.use("/uploads", uploadsRouter);
   app.use("/destinations", destinationsRouter);
   app.use("/accommodations", accommodationsRouter);
+  // Admin monitoring & enquiry inbox. /analytics/ingest and
+  // /monitoring/uptime are shared-secret writes; every read is ADMIN-only.
+  app.use("/analytics", analyticsRouter);
+  app.use("/monitoring", monitoringRouter);
+  app.use("/enquiries", enquiriesRouter);
 
   // ── Error handling (must be last) ────────────
   app.use(notFoundHandler);

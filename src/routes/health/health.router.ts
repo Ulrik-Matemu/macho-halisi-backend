@@ -5,6 +5,7 @@ export const healthRouter = Router();
 
 healthRouter.get("/", async (_req, res) => {
   try {
+    const start = process.hrtime.bigint();
     const dbResult = await pool.query("SELECT NOW()");
     res.json({
       status: "ok",
@@ -12,6 +13,7 @@ healthRouter.get("/", async (_req, res) => {
       database: {
         connected: true,
         serverTime: dbResult.rows[0].now,
+        latencyMs: Math.round(Number(process.hrtime.bigint() - start) / 1e6),
       },
     });
   } catch (err) {

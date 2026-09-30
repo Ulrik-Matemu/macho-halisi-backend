@@ -1,4 +1,6 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { env } from "../config/env.js";
+import { secretsMatch } from "../lib/secret.js";
 
 // ── Auth endpoint rate limiting ─────────────────
 //
@@ -47,4 +49,44 @@ export const mfaLimiter = rateLimit({
     status: "error",
     message: "Too many verification attempts. Please request a new code.",
   },
+});
+
+/**
+ * Applies to POST /public/enquiries. The enquiry form is the only
+ * anonymous write on the public API, so it's capped per IP to keep a
+ * scripted flood from burying genuine leads in the dashboard inbox.
+ */
+export const enquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Enquiries arrive via the website's server (Vercel), so req.ip is
+  // Vercel's egress IP, shared by every visitor. The website forwards the
+  // real client IP in X-Client-IP, authenticated by the ingest secret —
+  // an unauthenticated caller can't spoof its way out of the limit.
+  keyGenerator: (req) => {
+    const clientIp = req.headers["x-client-ip"];
+    if (typeof clientIp === "string" && clientIp && secretsMatch(req.headers["x-ingest-secret"], env.ANALYTICS_INGEST_SECRET)) {
+      return ipKeyGenerator(clientIp);
+    }
+    return ipKeyGenerator(req.ip ?? "unknown");
+  },
+  message: {
+    status: "error",
+    message: "Too many enquiries from this connection. Please try again shortly or reach us on WhatsApp.",
+  },
+});
+
+/**
+ * Applies to POST /analytics/ingest. Every request arrives from the
+ * Next.js server (one IP), so this is a coarse ceiling against a runaway
+ * client rather than per-visitor throttling.
+ */
+export const ingestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: "error", message: "Ingest rate limit exceeded" },
 });

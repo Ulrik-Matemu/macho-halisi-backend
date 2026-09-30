@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { ItineraryStatus } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
@@ -12,6 +13,8 @@ import {
   publicAccommodationSummarySelect,
   publicAccommodationDetailSelect,
 } from "./public.serializers.js";
+import { enquiryLimiter } from "../../middleware/rateLimit.js";
+import { notifyNewEnquiry } from "../../lib/notifications.js";
 
 // Anonymous, public-facing read routes for the marketing site. Nothing in
 // this router calls requireAuth — every query here is scoped to
@@ -173,7 +176,7 @@ publicRouter.get("/accommodations/:slug", async (req, res, next) => {
 });
 
 // ─── 4. POST /public/enquiries — anonymous lead capture ──────────
-publicRouter.post("/enquiries", async (req, res, next) => {
+publicRouter.post("/enquiries", enquiryLimiter, async (req, res, next) => {
   try {
     const parseResult = publicEnquirySchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -185,8 +188,19 @@ publicRouter.post("/enquiries", async (req, res, next) => {
       return;
     }
 
-    const { name, email, phone, itineraryId, partySize, preferredDates, message } =
-      parseResult.data;
+    const { website, itineraryId, ...fields } = parseResult.data;
+
+    // Honeypot tripped — answer exactly like a real success so the bot
+    // gets no signal, but write nothing.
+    if (website) {
+      res.status(201).json({
+        status: "ok",
+        message: "Enquiry submitted successfully",
+        enquiryId: randomUUID(),
+        receivedAt: new Date(),
+      });
+      return;
+    }
 
     // Optional foreign-key check: verify itineraryId exists if passed
     if (itineraryId) {
@@ -205,19 +219,32 @@ publicRouter.post("/enquiries", async (req, res, next) => {
 
     const enquiry = await prisma.enquiry.create({
       data: {
-        name,
-        email,
-        phone,
+        name: fields.name,
+        email: fields.email,
+        phone: fields.phone,
         itineraryId: itineraryId ?? null,
-        partySize: partySize ?? null,
-        preferredDates: preferredDates ?? null,
-        message: message ?? null,
+        partySize: fields.partySize ?? null,
+        preferredDates: fields.preferredDates ?? null,
+        message: fields.message ?? null,
+        source: fields.source ?? null,
+        pagePath: fields.pagePath ?? null,
+        referrerHost: fields.referrerHost ?? null,
+        utmSource: fields.utmSource ?? null,
+        country: fields.country?.toUpperCase() ?? null,
+        city: fields.city ?? null,
+        sessionId: fields.sessionId ?? null,
       },
       select: {
         id: true,
+        name: true,
+        email: true,
         createdAt: true,
       },
     });
+
+    // Fire-and-forget: a notification failure must never fail the
+    // visitor's submission, which is already safely stored.
+    notifyNewEnquiry(enquiry).catch((err) => console.error("Enquiry notification failed:", err));
 
     res.status(201).json({
       status: "ok",
