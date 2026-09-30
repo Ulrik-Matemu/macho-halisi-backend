@@ -87,7 +87,21 @@ export const accommodationQuerySchema = z.object({
   status: z.nativeEnum(ItineraryStatus).optional(),
 });
 
+// Same purpose as the itinerary equivalent: publicAccommodationDetailSelect
+// always takes images[0] ordered by sortOrder as the hero/cover image, so
+// reordering is the only way to change it. `order` must list every one of
+// the accommodation's current image IDs exactly once.
+export const reorderImagesSchema = z.object({
+  order: z.array(z.string().uuid("Invalid image ID format")).min(1, "order must include at least one image ID"),
+});
+
+export const updateImageSchema = z.object({
+  altText: z.string().trim().max(300, "Alt text must be 300 characters or fewer").optional().nullable(),
+});
+
 export type CreateAccommodationInput = z.infer<typeof createAccommodationSchema>;
 export type UpdateAccommodationInput = z.infer<typeof updateAccommodationSchema>;
 export type AddImageInput = z.infer<typeof addImageSchema>;
+export type ReorderImagesInput = z.infer<typeof reorderImagesSchema>;
+export type UpdateImageInput = z.infer<typeof updateImageSchema>;
 export type AccommodationQueryParams = z.infer<typeof accommodationQuerySchema>;

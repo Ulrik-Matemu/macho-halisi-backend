@@ -120,8 +120,23 @@ export const itineraryQuerySchema = z.object({
   status: z.nativeEnum(ItineraryStatus).optional(),
 });
 
+// Reordering is how the dashboard's gallery sets the itinerary's "hero"
+// image — publicItineraryDetailSelect always takes images[0] ordered by
+// sortOrder, so there is no separate hero flag to set. `order` must list
+// every one of the itinerary's current image IDs exactly once; the route
+// handler checks that against the DB rather than trusting the client.
+export const reorderImagesSchema = z.object({
+  order: z.array(z.string().uuid("Invalid image ID format")).min(1, "order must include at least one image ID"),
+});
+
+export const updateImageSchema = z.object({
+  altText: z.string().trim().max(300, "Alt text must be 300 characters or fewer").optional().nullable(),
+});
+
 export type CreateItineraryInput = z.infer<typeof createItinerarySchema>;
 export type UpdateItineraryInput = z.infer<typeof updateItinerarySchema>;
 export type AddImageInput = z.infer<typeof addImageSchema>;
+export type ReorderImagesInput = z.infer<typeof reorderImagesSchema>;
+export type UpdateImageInput = z.infer<typeof updateImageSchema>;
 export type ItineraryQueryParams = z.infer<typeof itineraryQuerySchema>;
 export type AvailabilityPeriodInput = z.infer<typeof availabilityPeriodInputSchema>;

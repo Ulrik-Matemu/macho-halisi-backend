@@ -9,6 +9,8 @@ import {
   createItinerarySchema,
   updateItinerarySchema,
   addImageSchema,
+  reorderImagesSchema,
+  updateImageSchema,
   itineraryQuerySchema,
   availabilityPeriodInputSchema,
   UpdateItineraryInput,
@@ -767,6 +769,104 @@ itinerariesRouter.delete(
         status: "ok",
         message: "Image removed successfully",
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── 8b. PATCH /itineraries/:id/images/reorder — Set gallery/hero order ─
+// Registered before the /:imageId route below so Express doesn't try to
+// match "reorder" as an imageId. The itinerary's hero image is simply
+// images[0] by sortOrder (see publicItineraryDetailSelect), so this is
+// the only way to change it — the dashboard's "Set as hero" and the
+// gallery's reorder arrows both call this. Like POST/DELETE images
+// above, this saves immediately rather than going through the debounced
+// PUT /:id autosave or the publish-review flow.
+itinerariesRouter.patch(
+  "/:id/images/reorder",
+  requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
+  async (req, res, next) => {
+    try {
+      const itineraryId = req.params.id as string;
+      const existing = await prisma.itinerary.findUnique({
+        where: { id: itineraryId },
+        select: { images: { select: { id: true } } },
+      });
+
+      if (!existing) {
+        res.status(404).json({ status: "error", message: "Itinerary not found" });
+        return;
+      }
+
+      const parseResult = reorderImagesSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          status: "error",
+          message: "Validation failed",
+          errors: parseResult.error.flatten(),
+        });
+        return;
+      }
+
+      const { order } = parseResult.data;
+      const currentIds = new Set(existing.images.map((img) => img.id));
+      const orderIds = new Set(order);
+      const isCompleteAndUnique =
+        order.length === currentIds.size &&
+        orderIds.size === order.length &&
+        order.every((id) => currentIds.has(id));
+
+      if (!isCompleteAndUnique) {
+        res.status(400).json({
+          status: "error",
+          message: "order must contain exactly this itinerary's current image IDs, each listed once",
+        });
+        return;
+      }
+
+      const images = await prisma.$transaction(
+        order.map((id, index) => prisma.itineraryImage.update({ where: { id }, data: { sortOrder: index } }))
+      );
+
+      res.json({ status: "ok", images: images.sort((a, b) => a.sortOrder - b.sortOrder) });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── 8c. PATCH /itineraries/:id/images/:imageId — Update alt text ─────
+itinerariesRouter.patch(
+  "/:id/images/:imageId",
+  requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
+  async (req, res, next) => {
+    try {
+      const itineraryId = req.params.id as string;
+      const imageId = req.params.imageId as string;
+
+      const image = await prisma.itineraryImage.findFirst({ where: { id: imageId, itineraryId } });
+      if (!image) {
+        res.status(404).json({ status: "error", message: "Image not found on this itinerary" });
+        return;
+      }
+
+      const parseResult = updateImageSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          status: "error",
+          message: "Validation failed",
+          errors: parseResult.error.flatten(),
+        });
+        return;
+      }
+
+      const updated = await prisma.itineraryImage.update({
+        where: { id: imageId },
+        data: { altText: parseResult.data.altText ?? null },
+      });
+
+      res.json({ status: "ok", image: updated });
     } catch (err) {
       next(err);
     }
