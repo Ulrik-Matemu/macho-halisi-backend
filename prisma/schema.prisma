@@ -69,6 +69,17 @@ enum ServiceTier {
   LUXURY
 }
 
+/// Per-image review state, shared by ItineraryImage and AccommodationImage.
+/// Only ever leaves LIVE while the parent itinerary/accommodation is
+/// PUBLISHED — see the gallery route handlers. LIVE images are what the
+/// public serializers select; PENDING_ADD/PENDING_DELETE are staged
+/// changes an admin has not yet published, visible only in the dashboard.
+enum GalleryImageStatus {
+  LIVE
+  PENDING_ADD
+  PENDING_DELETE
+}
+
 // ─── Models ────────────────────────────────────────────────────
 
 model User {
@@ -161,12 +172,19 @@ model Itinerary {
   availabilityStatus AvailabilityStatus @default(AVAILABLE)
   publishedAt        DateTime?
   expiresAt          DateTime?
+  // The public site's cover/hero image — an explicit choice via the
+  // dashboard's "Set as hero" control, independent of gallery order
+  // (images[0] by sortOrder is only a fallback when this is unset). Like
+  // any other scalar field, changing it on a PUBLISHED itinerary is
+  // staged in pendingRevision until an admin publishes it.
+  heroImageId        String?            @db.Uuid
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   // Relations
   author              User                   @relation("author", fields: [authorId], references: [id])
   editor              User?                  @relation("editor", fields: [editorId], references: [id])
+  heroImage           ItineraryImage?        @relation("itineraryHero", fields: [heroImageId], references: [id], onDelete: SetNull)
   days                ItineraryDay[]
   images              ItineraryImage[]
   destinations        ItineraryDestination[]
@@ -215,17 +233,26 @@ model ItineraryDay {
 }
 
 model ItineraryImage {
-  id                 String   @id @default(uuid()) @db.Uuid
-  itineraryId        String   @db.Uuid
+  id                 String             @id @default(uuid()) @db.Uuid
+  itineraryId        String             @db.Uuid
   url                String
   cloudinaryPublicId String?
-  sortOrder          Int      @default(0)
+  sortOrder          Int                @default(0)
   altText            String?
-  createdAt          DateTime @default(now())
+  status             GalleryImageStatus @default(LIVE)
+  // Staged edits awaiting publish — only ever set while the parent
+  // itinerary is PUBLISHED (see PATCH .../images/reorder and
+  // PATCH .../images/:imageId). Applied to sortOrder/altText and cleared
+  // by PATCH /:id/publish-changes; discarded by DELETE /:id/revision.
+  // null means "no pending edit" for each field independently.
+  pendingSortOrder   Int?
+  pendingAltText     String?
+  createdAt          DateTime           @default(now())
 
   // Relations
   itinerary  Itinerary      @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
   dayHeroFor ItineraryDay[]
+  heroFor    Itinerary[]    @relation("itineraryHero")
 
   @@map("itinerary_images")
 }
@@ -363,6 +390,9 @@ model Accommodation {
   authorId       String            @db.Uuid
   editorId       String?           @db.Uuid
   publishedAt    DateTime?
+  // The public site's cover/hero image — see Itinerary.heroImageId for the
+  // full rationale; same explicit-choice-over-position design.
+  heroImageId    String?           @db.Uuid
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -370,6 +400,7 @@ model Accommodation {
   author          User                   @relation("accommodationAuthor", fields: [authorId], references: [id])
   editor          User?                  @relation("accommodationEditor", fields: [editorId], references: [id])
   destination     Destination?           @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+  heroImage       AccommodationImage?    @relation("accommodationHero", fields: [heroImageId], references: [id], onDelete: SetNull)
   images          AccommodationImage[]
   // Unpublished edits awaiting admin review — see PUT /:id, which writes here
   // instead of the live fields once this accommodation is PUBLISHED, and
@@ -383,16 +414,22 @@ model Accommodation {
 }
 
 model AccommodationImage {
-  id                 String   @id @default(uuid()) @db.Uuid
-  accommodationId    String   @db.Uuid
+  id                 String             @id @default(uuid()) @db.Uuid
+  accommodationId    String             @db.Uuid
   url                String
   cloudinaryPublicId String?
-  sortOrder          Int      @default(0)
+  sortOrder          Int                @default(0)
   altText            String?
-  createdAt          DateTime @default(now())
+  status             GalleryImageStatus @default(LIVE)
+  // See ItineraryImage.pendingSortOrder / pendingAltText — same staging
+  // model, one field independently nullable per pending edit.
+  pendingSortOrder   Int?
+  pendingAltText     String?
+  createdAt          DateTime           @default(now())
 
   // Relations
-  accommodation Accommodation @relation(fields: [accommodationId], references: [id], onDelete: Cascade)
+  accommodation Accommodation   @relation(fields: [accommodationId], references: [id], onDelete: Cascade)
+  heroFor       Accommodation[] @relation("accommodationHero")
 
   @@map("accommodation_images")
 }

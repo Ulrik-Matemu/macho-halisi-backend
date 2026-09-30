@@ -30,6 +30,7 @@ const itineraryInclude = {
     include: { heroImage: { select: { id: true, url: true, altText: true } } },
   },
   images: { orderBy: { sortOrder: "asc" as const } },
+  heroImage: { select: { id: true, url: true, altText: true } },
   destinations: {
     include: {
       destination: {
@@ -50,13 +51,18 @@ const itineraryInclude = {
  */
 async function findInvalidHeroImageId(
   itineraryId: string,
-  days: UpdateItineraryInput["days"]
+  days: UpdateItineraryInput["days"],
+  topLevelHeroImageId?: UpdateItineraryInput["heroImageId"]
 ): Promise<string | null> {
-  const referencedImageIds = (days ?? [])
-    .map((d) => d.heroImageId)
-    .filter((v): v is string => Boolean(v));
+  const referencedImageIds = [
+    ...(days ?? []).map((d) => d.heroImageId),
+    topLevelHeroImageId,
+  ].filter((v): v is string => Boolean(v));
   if (referencedImageIds.length === 0) return null;
 
+  // Any status is a valid reference here — a staged (PENDING_ADD) image is
+  // legitimately selectable as hero while its own upload is still awaiting
+  // publish; only ownership (belongs to this itinerary) is checked.
   const ownedImages = await prisma.itineraryImage.findMany({
     where: { itineraryId, id: { in: referencedImageIds } },
     select: { id: true },
@@ -86,7 +92,7 @@ async function applyItineraryUpdate(
     slug = await generateUniqueItinerarySlug(input.title, id);
   }
 
-  return prisma.$transaction(async (tx) => {
+  const { itinerary: updated, cloudinaryIdsToDelete } = await prisma.$transaction(async (tx) => {
     // Replace days if provided
     if (input.days !== undefined) {
       await tx.itineraryDay.deleteMany({ where: { itineraryId: id } });
@@ -131,8 +137,49 @@ async function applyItineraryUpdate(
       startingPrice = input.startingPrice as any;
     }
 
+    // Reconcile any gallery changes staged while this itinerary was
+    // PUBLISHED (uploads, deletions, reorders, alt-text edits — see the
+    // /:id/images route handlers below, which are what set these pending
+    // fields in the first place). This runs unconditionally: for a
+    // DRAFT/IN_REVIEW itinerary nothing is ever staged, so it's a no-op.
+    const pendingImages = await tx.itineraryImage.findMany({
+      where: {
+        itineraryId: id,
+        OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+      },
+      select: {
+        id: true,
+        status: true,
+        sortOrder: true,
+        altText: true,
+        pendingSortOrder: true,
+        pendingAltText: true,
+        cloudinaryPublicId: true,
+      },
+    });
+    const toDelete = pendingImages.filter((img) => img.status === "PENDING_DELETE");
+    const toReconcile = pendingImages.filter((img) => img.status !== "PENDING_DELETE");
+
+    if (toDelete.length > 0) {
+      await tx.itineraryImage.deleteMany({ where: { id: { in: toDelete.map((img) => img.id) } } });
+    }
+    await Promise.all(
+      toReconcile.map((img) =>
+        tx.itineraryImage.update({
+          where: { id: img.id },
+          data: {
+            status: "LIVE",
+            sortOrder: img.pendingSortOrder ?? img.sortOrder,
+            altText: img.pendingAltText ?? img.altText,
+            pendingSortOrder: null,
+            pendingAltText: null,
+          },
+        })
+      )
+    );
+
     // Update itinerary scalars
-    return tx.itinerary.update({
+    const itinerary = await tx.itinerary.update({
       where: { id },
       data: {
         title: input.title,
@@ -149,10 +196,35 @@ async function applyItineraryUpdate(
         routeMapUrl: input.routeMapUrl !== undefined ? input.routeMapUrl || null : undefined,
         showRouteMap: input.showRouteMap,
         availabilityStatus: input.availabilityStatus,
+        heroImageId: input.heroImageId !== undefined ? input.heroImageId || null : undefined,
       },
       include: itineraryInclude,
     });
+
+    return {
+      itinerary,
+      cloudinaryIdsToDelete: toDelete
+        .map((img) => img.cloudinaryPublicId)
+        .filter((v): v is string => Boolean(v)),
+    };
   });
+
+  // Best-effort Cloudinary cleanup outside the transaction, deliberately
+  // non-fatal — mirrors DELETE /:id/images/:imageId, which doesn't fail
+  // the request over a Cloudinary hiccup either. These assets were only
+  // ever staged for deletion, never actually referenced publicly, so a
+  // failure here just leaves an orphaned asset rather than losing data.
+  if (cloudinaryIdsToDelete.length > 0) {
+    await Promise.all(
+      cloudinaryIdsToDelete.map((publicId) =>
+        deleteCloudinaryAsset(publicId).catch((err) =>
+          console.warn(`Failed to delete asset from Cloudinary (${publicId}):`, err)
+        )
+      )
+    );
+  }
+
+  return updated;
 }
 
 /**
@@ -207,6 +279,11 @@ async function buildRevisionPreview(
     ? input.startingPrice
     : full.startingPrice;
 
+  const heroImageId = input.heroImageId !== undefined ? input.heroImageId ?? null : full.heroImageId;
+  const heroImage = input.heroImageId !== undefined
+    ? (input.heroImageId ? imagesById.get(input.heroImageId) ?? null : null)
+    : full.heroImage;
+
   return {
     ...full,
     title: input.title ?? full.title,
@@ -220,6 +297,8 @@ async function buildRevisionPreview(
     routeMapUrl: input.routeMapUrl !== undefined ? input.routeMapUrl || null : full.routeMapUrl,
     showRouteMap: input.showRouteMap !== undefined ? input.showRouteMap : full.showRouteMap,
     availabilityStatus: input.availabilityStatus ?? full.availabilityStatus,
+    heroImageId,
+    heroImage,
     days,
     destinations,
   };
@@ -418,7 +497,7 @@ itinerariesRouter.put(
 
       const input = parseResult.data;
 
-      const invalidHeroImageId = await findInvalidHeroImageId(id, input.days);
+      const invalidHeroImageId = await findInvalidHeroImageId(id, input.days, input.heroImageId);
       if (invalidHeroImageId) {
         res.status(400).json({
           status: "error",
@@ -468,13 +547,26 @@ itinerariesRouter.put(
 itinerariesRouter.get("/:id/revision", async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const revision = await prisma.itineraryRevision.findUnique({
-      where: { itineraryId: id },
-      include: { editor: { select: { id: true, email: true, role: true } } },
-    });
+    const [revision, pendingImageCount] = await Promise.all([
+      prisma.itineraryRevision.findUnique({
+        where: { itineraryId: id },
+        include: { editor: { select: { id: true, email: true, role: true } } },
+      }),
+      prisma.itineraryImage.count({ where: {
+        itineraryId: id,
+        OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+      } }),
+    ]);
+    const hasPendingImages = pendingImageCount > 0;
 
     if (!revision) {
-      res.json({ status: "ok", revision: null, preview: null });
+      // Gallery changes are staged independently of the scalar revision
+      // (see the /:id/images route handlers), so there can be pending
+      // changes to show/publish even with no ItineraryRevision row.
+      const full = hasPendingImages
+        ? await prisma.itinerary.findUnique({ where: { id }, include: itineraryInclude })
+        : null;
+      res.json({ status: "ok", revision: null, preview: full, hasPendingImages });
       return;
     }
 
@@ -484,7 +576,7 @@ itinerariesRouter.get("/:id/revision", async (req, res, next) => {
       : null;
     const preview = full && parseResult.success ? await buildRevisionPreview(full, parseResult.data) : null;
 
-    res.json({ status: "ok", revision, preview });
+    res.json({ status: "ok", revision, preview, hasPendingImages });
   } catch (err) {
     next(err);
   }
@@ -492,14 +584,55 @@ itinerariesRouter.get("/:id/revision", async (req, res, next) => {
 
 // ─── 4b. DELETE /itineraries/:id/revision — Discard pending edit
 // Same role gate as PUT — discarding is just abandoning your own
-// in-progress edit, not a publish/status decision.
+// in-progress edit, not a publish/status decision. Also reverts any
+// staged gallery changes (new uploads, removals, reordering, alt-text
+// edits — see the /:id/images route handlers), since those are staged
+// alongside the scalar/day/destination revision and are part of the same
+// "in-progress edit" from an editor's point of view.
 itinerariesRouter.delete(
   "/:id/revision",
   requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
   async (req, res, next) => {
     try {
       const id = req.params.id as string;
-      await prisma.itineraryRevision.deleteMany({ where: { itineraryId: id } });
+
+      const pendingImages = await prisma.itineraryImage.findMany({
+        where: {
+          itineraryId: id,
+          OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+        },
+        select: { id: true, status: true, cloudinaryPublicId: true },
+      });
+      const toDelete = pendingImages.filter((img) => img.status === "PENDING_ADD");
+      const toRevert = pendingImages.filter((img) => img.status !== "PENDING_ADD").map((img) => img.id);
+
+      await prisma.$transaction([
+        ...(toDelete.length > 0
+          ? [prisma.itineraryImage.deleteMany({ where: { id: { in: toDelete.map((img) => img.id) } } })]
+          : []),
+        ...(toRevert.length > 0
+          ? [
+              prisma.itineraryImage.updateMany({
+                where: { id: { in: toRevert } },
+                data: { status: "LIVE", pendingSortOrder: null, pendingAltText: null },
+              }),
+            ]
+          : []),
+        prisma.itineraryRevision.deleteMany({ where: { itineraryId: id } }),
+      ]);
+
+      if (toDelete.length > 0) {
+        await Promise.all(
+          toDelete.map((img) =>
+            img.cloudinaryPublicId
+              ? deleteCloudinaryAsset(img.cloudinaryPublicId).catch((err) =>
+                  console.warn(`Failed to delete asset from Cloudinary (${img.cloudinaryPublicId}):`, err)
+                )
+              : Promise.resolve()
+          )
+        );
+      }
+
       res.json({ status: "ok" });
     } catch (err) {
       next(err);
@@ -517,40 +650,49 @@ itinerariesRouter.patch(
   async (req, res, next) => {
     try {
       const id = req.params.id as string;
-      const [existing, revision] = await Promise.all([
+      const [existing, revision, pendingImageCount] = await Promise.all([
         prisma.itinerary.findUnique({ where: { id } }),
         prisma.itineraryRevision.findUnique({ where: { itineraryId: id } }),
+        prisma.itineraryImage.count({ where: {
+        itineraryId: id,
+        OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+      } }),
       ]);
 
       if (!existing) {
         res.status(404).json({ status: "error", message: "Itinerary not found" });
         return;
       }
-      if (!revision) {
+      // A gallery-only edit (no other field touched) has pending images
+      // but no ItineraryRevision row — still something to publish.
+      if (!revision && pendingImageCount === 0) {
         res.status(404).json({ status: "error", message: "No pending changes to publish" });
         return;
       }
 
-      // Re-validate the stored payload — it was valid when saved, but the
-      // schema or the itinerary's own image set may have moved on since.
-      const parseResult = updateItinerarySchema.safeParse(revision.data);
-      if (!parseResult.success) {
-        res.status(400).json({
-          status: "error",
-          message: "The pending revision is no longer valid — re-edit and save again before publishing.",
-          errors: parseResult.error.flatten(),
-        });
-        return;
-      }
-      const input = parseResult.data;
+      let input: UpdateItineraryInput = {};
+      if (revision) {
+        // Re-validate the stored payload — it was valid when saved, but
+        // the schema or the itinerary's own image set may have moved on.
+        const parseResult = updateItinerarySchema.safeParse(revision.data);
+        if (!parseResult.success) {
+          res.status(400).json({
+            status: "error",
+            message: "The pending revision is no longer valid — re-edit and save again before publishing.",
+            errors: parseResult.error.flatten(),
+          });
+          return;
+        }
+        input = parseResult.data;
 
-      const invalidHeroImageId = await findInvalidHeroImageId(id, input.days);
-      if (invalidHeroImageId) {
-        res.status(400).json({
-          status: "error",
-          message: `heroImageId ${invalidHeroImageId} no longer references an image belonging to this itinerary — re-edit and save again.`,
-        });
-        return;
+        const invalidHeroImageId = await findInvalidHeroImageId(id, input.days, input.heroImageId);
+        if (invalidHeroImageId) {
+          res.status(400).json({
+            status: "error",
+            message: `heroImageId ${invalidHeroImageId} no longer references an image belonging to this itinerary — re-edit and save again.`,
+          });
+          return;
+        }
       }
 
       const updated = await applyItineraryUpdate(id, input, existing, req.user!.userId);
@@ -689,6 +831,12 @@ itinerariesRouter.delete(
 );
 
 // ─── 8. POST /itineraries/:id/images — Add gallery image ──────
+// The upload itself (POST /uploads/image, to Cloudinary) already happened
+// before this call — this just attaches the resulting URL as a gallery
+// row. For a PUBLISHED itinerary that row is staged as PENDING_ADD: it's
+// visible to editors immediately but excluded from the public site until
+// an admin publishes it via PATCH /:id/publish-changes, same review gate
+// every other field on a published itinerary already has.
 itinerariesRouter.post(
   "/:id/images",
   requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
@@ -720,6 +868,7 @@ itinerariesRouter.post(
           cloudinaryPublicId: input.cloudinaryPublicId || null,
           sortOrder: input.sortOrder,
           altText: input.altText,
+          status: existing.status === ItineraryStatus.PUBLISHED ? "PENDING_ADD" : "LIVE",
         },
       });
 
@@ -734,6 +883,13 @@ itinerariesRouter.post(
 );
 
 // ─── 9. DELETE /itineraries/:id/images/:imageId — Remove image ─
+// A PENDING_ADD image was never public, so removing it is immediate and
+// final — same as today. Removing a LIVE image on a PUBLISHED itinerary
+// instead stages the removal (PENDING_DELETE): it stays visible on the
+// public site until an admin publishes the change, at which point
+// applyItineraryUpdate's reconciliation step actually deletes it. Calling
+// this again on an already-staged removal undoes it (back to LIVE) —
+// the dashboard uses this to offer an "Undo removal" action.
 itinerariesRouter.delete(
   "/:id/images/:imageId",
   requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
@@ -742,19 +898,42 @@ itinerariesRouter.delete(
       const itineraryId = req.params.id as string;
       const imageId = req.params.imageId as string;
 
-      const image = await prisma.itineraryImage.findFirst({
-        where: {
-          id: imageId,
-          itineraryId,
-        },
-      });
+      const [itinerary, image] = await Promise.all([
+        prisma.itinerary.findUnique({ where: { id: itineraryId }, select: { status: true } }),
+        prisma.itineraryImage.findFirst({ where: { id: imageId, itineraryId } }),
+      ]);
 
+      if (!itinerary) {
+        res.status(404).json({ status: "error", message: "Itinerary not found" });
+        return;
+      }
       if (!image) {
         res.status(404).json({ status: "error", message: "Image not found on this itinerary" });
         return;
       }
 
-      // If asset was uploaded to Cloudinary, delete it from Cloudinary storage
+      const isPublished = itinerary.status === ItineraryStatus.PUBLISHED;
+
+      if (isPublished && image.status === "LIVE") {
+        const staged = await prisma.itineraryImage.update({
+          where: { id: imageId },
+          data: { status: "PENDING_DELETE" },
+        });
+        res.json({ status: "ok", message: "Image staged for removal — publish changes to make it final.", image: staged });
+        return;
+      }
+
+      if (isPublished && image.status === "PENDING_DELETE") {
+        const restored = await prisma.itineraryImage.update({
+          where: { id: imageId },
+          data: { status: "LIVE" },
+        });
+        res.json({ status: "ok", message: "Removal undone.", image: restored });
+        return;
+      }
+
+      // PENDING_ADD, or the itinerary isn't PUBLISHED yet — nothing public
+      // to protect, so delete for real, same as before this review gate.
       if (image.cloudinaryPublicId) {
         try {
           await deleteCloudinaryAsset(image.cloudinaryPublicId);
@@ -775,14 +954,15 @@ itinerariesRouter.delete(
   }
 );
 
-// ─── 8b. PATCH /itineraries/:id/images/reorder — Set gallery/hero order ─
+// ─── 8b. PATCH /itineraries/:id/images/reorder — Set gallery order ────
 // Registered before the /:imageId route below so Express doesn't try to
-// match "reorder" as an imageId. The itinerary's hero image is simply
-// images[0] by sortOrder (see publicItineraryDetailSelect), so this is
-// the only way to change it — the dashboard's "Set as hero" and the
-// gallery's reorder arrows both call this. Like POST/DELETE images
-// above, this saves immediately rather than going through the debounced
-// PUT /:id autosave or the publish-review flow.
+// match "reorder" as an imageId. Order is a purely cosmetic/browsing
+// concern now — the hero image is the explicit Itinerary.heroImageId set
+// via PUT /:id (see the dashboard's "Set as hero" button), not position.
+// For a PUBLISHED itinerary the new order is staged into pendingSortOrder
+// rather than written live, so the public gallery order doesn't change
+// until an admin publishes it; DRAFT/IN_REVIEW itineraries write straight
+// through as before, since nothing is public yet.
 itinerariesRouter.patch(
   "/:id/images/reorder",
   requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
@@ -791,7 +971,7 @@ itinerariesRouter.patch(
       const itineraryId = req.params.id as string;
       const existing = await prisma.itinerary.findUnique({
         where: { id: itineraryId },
-        select: { images: { select: { id: true } } },
+        select: { status: true, images: { select: { id: true } } },
       });
 
       if (!existing) {
@@ -825,11 +1005,21 @@ itinerariesRouter.patch(
         return;
       }
 
+      const isPublished = existing.status === ItineraryStatus.PUBLISHED;
       const images = await prisma.$transaction(
-        order.map((id, index) => prisma.itineraryImage.update({ where: { id }, data: { sortOrder: index } }))
+        order.map((id, index) =>
+          prisma.itineraryImage.update({
+            where: { id },
+            data: isPublished ? { pendingSortOrder: index } : { sortOrder: index },
+          })
+        )
       );
 
-      res.json({ status: "ok", images: images.sort((a, b) => a.sortOrder - b.sortOrder) });
+      res.json({
+        status: "ok",
+        images: images.sort((a, b) => (a.pendingSortOrder ?? a.sortOrder) - (b.pendingSortOrder ?? b.sortOrder)),
+        pendingReview: isPublished,
+      });
     } catch (err) {
       next(err);
     }
@@ -837,6 +1027,10 @@ itinerariesRouter.patch(
 );
 
 // ─── 8c. PATCH /itineraries/:id/images/:imageId — Update alt text ─────
+// Same staging rule as reorder above: a LIVE image on a PUBLISHED
+// itinerary gets pendingAltText instead of a live write. A PENDING_ADD
+// image has nothing public to protect yet, so it's written directly even
+// on a PUBLISHED itinerary.
 itinerariesRouter.patch(
   "/:id/images/:imageId",
   requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
@@ -845,7 +1039,15 @@ itinerariesRouter.patch(
       const itineraryId = req.params.id as string;
       const imageId = req.params.imageId as string;
 
-      const image = await prisma.itineraryImage.findFirst({ where: { id: imageId, itineraryId } });
+      const [itinerary, image] = await Promise.all([
+        prisma.itinerary.findUnique({ where: { id: itineraryId }, select: { status: true } }),
+        prisma.itineraryImage.findFirst({ where: { id: imageId, itineraryId } }),
+      ]);
+
+      if (!itinerary) {
+        res.status(404).json({ status: "error", message: "Itinerary not found" });
+        return;
+      }
       if (!image) {
         res.status(404).json({ status: "error", message: "Image not found on this itinerary" });
         return;
@@ -861,12 +1063,15 @@ itinerariesRouter.patch(
         return;
       }
 
+      const shouldStage = itinerary.status === ItineraryStatus.PUBLISHED && image.status === "LIVE";
       const updated = await prisma.itineraryImage.update({
         where: { id: imageId },
-        data: { altText: parseResult.data.altText ?? null },
+        data: shouldStage
+          ? { pendingAltText: parseResult.data.altText ?? "" }
+          : { altText: parseResult.data.altText ?? null },
       });
 
-      res.json({ status: "ok", image: updated });
+      res.json({ status: "ok", image: updated, pendingReview: shouldStage });
     } catch (err) {
       next(err);
     }

@@ -30,7 +30,16 @@ export const publicItinerarySummarySelect = {
   availabilityStatus: true,
   publishedAt: true,
   updatedAt: true,
+  // The explicit hero choice (dashboard "Set as hero") — always LIVE by
+  // construction (see applyItineraryUpdate's reconciliation step), so no
+  // status filter is needed on this relation itself. `images` below
+  // remains the fallback for itineraries with no hero set. Excludes only
+  // PENDING_ADD (a new upload not yet published) — a PENDING_DELETE image
+  // is still live content and stays visible until the removal itself is
+  // published (see the /:id/images DELETE handler).
+  heroImage: { select: { id: true, url: true, altText: true } },
   images: {
+    where: { status: { not: "PENDING_ADD" } },
     orderBy: { sortOrder: "asc" as const },
     take: 1,
     select: { id: true, url: true, altText: true },
@@ -62,7 +71,9 @@ export const publicAccommodationSummarySelect = {
   priceOnRequest: true,
   publishedAt: true,
   updatedAt: true,
+  heroImage: { select: { id: true, url: true, altText: true } },
   images: {
+    where: { status: { not: "PENDING_ADD" } },
     orderBy: { sortOrder: "asc" as const },
     take: 1,
     select: { id: true, url: true, altText: true },
@@ -88,7 +99,9 @@ export const publicAccommodationDetailSelect = {
   publishedAt: true,
   createdAt: true,
   updatedAt: true,
+  heroImage: { select: { id: true, url: true, altText: true } },
   images: {
+    where: { status: { not: "PENDING_ADD" } },
     orderBy: { sortOrder: "asc" as const },
     select: { id: true, url: true, altText: true, sortOrder: true },
   },
@@ -130,7 +143,9 @@ export const publicItineraryDetailSelect = {
       heroImage: { select: { id: true, url: true, altText: true } },
     },
   },
+  heroImage: { select: { id: true, url: true, altText: true } },
   images: {
+    where: { status: { not: "PENDING_ADD" } },
     orderBy: { sortOrder: "asc" as const },
     select: { id: true, url: true, altText: true, sortOrder: true },
   },

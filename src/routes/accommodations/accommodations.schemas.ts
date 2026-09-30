@@ -24,6 +24,11 @@ export const createAccommodationSchema = z
     priceOnRequest: z.boolean().default(false),
     destinationId: z.string().uuid("Invalid destination ID format").optional().nullable(),
     images: z.array(imageInputSchema).default([]),
+    // Must reference one of this accommodation's own images — checked in
+    // the route handler, since Zod can't validate a cross-record
+    // reference. Not wired into POST /accommodations below: images are
+    // created in that same call, so there's nothing to reference yet.
+    heroImageId: z.string().uuid("Invalid image ID format").optional().nullable(),
   })
   .refine(
     (data) => {
@@ -60,6 +65,7 @@ export const updateAccommodationSchema = z
     pricePerNight: z.number().positive("Price per night must be a positive amount").optional().nullable(),
     priceOnRequest: z.boolean().optional(),
     destinationId: z.string().uuid("Invalid destination ID format").optional().nullable(),
+    heroImageId: z.string().uuid("Invalid image ID format").optional().nullable(),
   })
   .refine(
     (data) => {
@@ -87,10 +93,10 @@ export const accommodationQuerySchema = z.object({
   status: z.nativeEnum(ItineraryStatus).optional(),
 });
 
-// Same purpose as the itinerary equivalent: publicAccommodationDetailSelect
-// always takes images[0] ordered by sortOrder as the hero/cover image, so
-// reordering is the only way to change it. `order` must list every one of
-// the accommodation's current image IDs exactly once.
+// Order is purely cosmetic now — the hero/cover image is the explicit
+// Accommodation.heroImageId (see above), not gallery position. `order`
+// must list every one of the accommodation's current image IDs exactly
+// once.
 export const reorderImagesSchema = z.object({
   order: z.array(z.string().uuid("Invalid image ID format")).min(1, "order must include at least one image ID"),
 });

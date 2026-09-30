@@ -40,6 +40,9 @@ export const createItinerarySchema = z
     days: z.array(dayInputSchema).default([]),
     destinationIds: z.array(z.string().uuid("Invalid destination ID format")).default([]),
     images: z.array(imageInputSchema).default([]),
+    // Must reference one of this itinerary's own images — checked in the
+    // route handler, same as day.heroImageId above.
+    heroImageId: z.string().uuid("Invalid image ID format").optional().nullable(),
   })
   .refine(
     (data) => {
@@ -80,6 +83,7 @@ export const updateItinerarySchema = z
     availabilityStatus: z.nativeEnum(AvailabilityStatus).optional(),
     days: z.array(dayInputSchema).optional(),
     destinationIds: z.array(z.string().uuid("Invalid destination ID format")).optional(),
+    heroImageId: z.string().uuid("Invalid image ID format").optional().nullable(),
   })
   .refine(
     (data) => {

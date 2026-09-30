@@ -24,6 +24,7 @@ accommodationsRouter.use(requireAuth);
 // canonical shape instead of copies drifting apart.
 const accommodationInclude = {
   images: { orderBy: { sortOrder: "asc" as const } },
+  heroImage: { select: { id: true, url: true, altText: true } },
   destination: {
     select: { id: true, name: true, slug: true, latitude: true, longitude: true, blurb: true },
   },
@@ -43,6 +44,21 @@ async function destinationExists(destinationId: string | null | undefined): Prom
     select: { id: true },
   });
   return Boolean(destination);
+}
+
+/**
+ * Validates that heroImageId, if set, references an image actually
+ * belonging to this accommodation. Any status is a valid reference — a
+ * staged (PENDING_ADD) image is legitimately selectable as hero while its
+ * own upload is still awaiting publish.
+ */
+async function isOwnHeroImage(accommodationId: string, heroImageId: string | null | undefined): Promise<boolean> {
+  if (!heroImageId) return true;
+  const image = await prisma.accommodationImage.findFirst({
+    where: { id: heroImageId, accommodationId },
+    select: { id: true },
+  });
+  return Boolean(image);
 }
 
 /**
@@ -74,27 +90,92 @@ async function applyAccommodationUpdate(
     pricePerNight = input.pricePerNight as any;
   }
 
-  return prisma.accommodation.update({
-    where: { id },
-    data: {
-      name: input.name,
-      slug,
-      status: input.status,
-      editorId,
-      type: input.type,
-      serviceTier: input.serviceTier,
-      starRating: input.starRating,
-      locationText: input.locationText,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      description: input.description,
-      amenities: input.amenities,
-      pricePerNight,
-      priceOnRequest,
-      destinationId: input.destinationId !== undefined ? input.destinationId || null : undefined,
-    },
-    include: accommodationInclude,
+  const { accommodation: updated, cloudinaryIdsToDelete } = await prisma.$transaction(async (tx) => {
+    // Reconcile any gallery changes staged while this accommodation was
+    // PUBLISHED (uploads, deletions, reorders, alt-text edits — see the
+    // /:id/images route handlers below, which are what set these pending
+    // fields in the first place). No-op for a DRAFT/IN_REVIEW record,
+    // since nothing is ever staged on one.
+    const pendingImages = await tx.accommodationImage.findMany({
+      where: {
+        accommodationId: id,
+        OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+      },
+      select: {
+        id: true,
+        status: true,
+        sortOrder: true,
+        altText: true,
+        pendingSortOrder: true,
+        pendingAltText: true,
+        cloudinaryPublicId: true,
+      },
+    });
+    const toDelete = pendingImages.filter((img) => img.status === "PENDING_DELETE");
+    const toReconcile = pendingImages.filter((img) => img.status !== "PENDING_DELETE");
+
+    if (toDelete.length > 0) {
+      await tx.accommodationImage.deleteMany({ where: { id: { in: toDelete.map((img) => img.id) } } });
+    }
+    await Promise.all(
+      toReconcile.map((img) =>
+        tx.accommodationImage.update({
+          where: { id: img.id },
+          data: {
+            status: "LIVE",
+            sortOrder: img.pendingSortOrder ?? img.sortOrder,
+            altText: img.pendingAltText ?? img.altText,
+            pendingSortOrder: null,
+            pendingAltText: null,
+          },
+        })
+      )
+    );
+
+    const accommodation = await tx.accommodation.update({
+      where: { id },
+      data: {
+        name: input.name,
+        slug,
+        status: input.status,
+        editorId,
+        type: input.type,
+        serviceTier: input.serviceTier,
+        starRating: input.starRating,
+        locationText: input.locationText,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        description: input.description,
+        amenities: input.amenities,
+        pricePerNight,
+        priceOnRequest,
+        destinationId: input.destinationId !== undefined ? input.destinationId || null : undefined,
+        heroImageId: input.heroImageId !== undefined ? input.heroImageId || null : undefined,
+      },
+      include: accommodationInclude,
+    });
+
+    return {
+      accommodation,
+      cloudinaryIdsToDelete: toDelete
+        .map((img) => img.cloudinaryPublicId)
+        .filter((v): v is string => Boolean(v)),
+    };
   });
+
+  // Best-effort Cloudinary cleanup outside the transaction — see the
+  // itinerary equivalent (applyItineraryUpdate) for the full rationale.
+  if (cloudinaryIdsToDelete.length > 0) {
+    await Promise.all(
+      cloudinaryIdsToDelete.map((publicId) =>
+        deleteCloudinaryAsset(publicId).catch((err) =>
+          console.warn(`Failed to delete asset from Cloudinary (${publicId}):`, err)
+        )
+      )
+    );
+  }
+
+  return updated;
 }
 
 /**
@@ -125,6 +206,11 @@ async function buildRevisionPreview(
     ? input.pricePerNight
     : full.pricePerNight;
 
+  const heroImageId = input.heroImageId !== undefined ? input.heroImageId ?? null : full.heroImageId;
+  const heroImage = input.heroImageId !== undefined
+    ? (input.heroImageId ? full.images.find((img) => img.id === input.heroImageId) ?? null : null)
+    : full.heroImage;
+
   return {
     ...full,
     name: input.name ?? full.name,
@@ -140,6 +226,8 @@ async function buildRevisionPreview(
     priceOnRequest,
     destination,
     destinationId: input.destinationId !== undefined ? input.destinationId || null : full.destinationId,
+    heroImageId,
+    heroImage,
   };
 }
 
@@ -315,6 +403,14 @@ accommodationsRouter.put(
         return;
       }
 
+      if (!(await isOwnHeroImage(id, input.heroImageId))) {
+        res.status(400).json({
+          status: "error",
+          message: `heroImageId ${input.heroImageId} does not reference an image belonging to this accommodation`,
+        });
+        return;
+      }
+
       if (existing.status === ItineraryStatus.PUBLISHED) {
         await prisma.accommodationRevision.upsert({
           where: { accommodationId: id },
@@ -343,13 +439,26 @@ accommodationsRouter.put(
 accommodationsRouter.get("/:id/revision", async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const revision = await prisma.accommodationRevision.findUnique({
-      where: { accommodationId: id },
-      include: { editor: { select: { id: true, email: true, role: true } } },
-    });
+    const [revision, pendingImageCount] = await Promise.all([
+      prisma.accommodationRevision.findUnique({
+        where: { accommodationId: id },
+        include: { editor: { select: { id: true, email: true, role: true } } },
+      }),
+      prisma.accommodationImage.count({ where: {
+        accommodationId: id,
+        OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+      } }),
+    ]);
+    const hasPendingImages = pendingImageCount > 0;
 
     if (!revision) {
-      res.json({ status: "ok", revision: null, preview: null });
+      // Gallery changes are staged independently of the scalar revision
+      // (see the /:id/images route handlers), so there can be pending
+      // changes to show/publish even with no AccommodationRevision row.
+      const full = hasPendingImages
+        ? await prisma.accommodation.findUnique({ where: { id }, include: accommodationInclude })
+        : null;
+      res.json({ status: "ok", revision: null, preview: full, hasPendingImages });
       return;
     }
 
@@ -359,7 +468,7 @@ accommodationsRouter.get("/:id/revision", async (req, res, next) => {
       : null;
     const preview = full && parseResult.success ? await buildRevisionPreview(full, parseResult.data) : null;
 
-    res.json({ status: "ok", revision, preview });
+    res.json({ status: "ok", revision, preview, hasPendingImages });
   } catch (err) {
     next(err);
   }
@@ -372,7 +481,44 @@ accommodationsRouter.delete(
   async (req, res, next) => {
     try {
       const id = req.params.id as string;
-      await prisma.accommodationRevision.deleteMany({ where: { accommodationId: id } });
+
+      const pendingImages = await prisma.accommodationImage.findMany({
+        where: {
+          accommodationId: id,
+          OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+        },
+        select: { id: true, status: true, cloudinaryPublicId: true },
+      });
+      const toDelete = pendingImages.filter((img) => img.status === "PENDING_ADD");
+      const toRevert = pendingImages.filter((img) => img.status !== "PENDING_ADD").map((img) => img.id);
+
+      await prisma.$transaction([
+        ...(toDelete.length > 0
+          ? [prisma.accommodationImage.deleteMany({ where: { id: { in: toDelete.map((img) => img.id) } } })]
+          : []),
+        ...(toRevert.length > 0
+          ? [
+              prisma.accommodationImage.updateMany({
+                where: { id: { in: toRevert } },
+                data: { status: "LIVE", pendingSortOrder: null, pendingAltText: null },
+              }),
+            ]
+          : []),
+        prisma.accommodationRevision.deleteMany({ where: { accommodationId: id } }),
+      ]);
+
+      if (toDelete.length > 0) {
+        await Promise.all(
+          toDelete.map((img) =>
+            img.cloudinaryPublicId
+              ? deleteCloudinaryAsset(img.cloudinaryPublicId).catch((err) =>
+                  console.warn(`Failed to delete asset from Cloudinary (${img.cloudinaryPublicId}):`, err)
+                )
+              : Promise.resolve()
+          )
+        );
+      }
+
       res.json({ status: "ok" });
     } catch (err) {
       next(err);
@@ -387,39 +533,56 @@ accommodationsRouter.patch(
   async (req, res, next) => {
     try {
       const id = req.params.id as string;
-      const [existing, revision] = await Promise.all([
+      const [existing, revision, pendingImageCount] = await Promise.all([
         prisma.accommodation.findUnique({ where: { id } }),
         prisma.accommodationRevision.findUnique({ where: { accommodationId: id } }),
+        prisma.accommodationImage.count({ where: {
+        accommodationId: id,
+        OR: [{ status: { not: "LIVE" } }, { pendingSortOrder: { not: null } }, { pendingAltText: { not: null } }],
+      } }),
       ]);
 
       if (!existing) {
         res.status(404).json({ status: "error", message: "Accommodation not found" });
         return;
       }
-      if (!revision) {
+      // A gallery-only edit (no other field touched) has pending images
+      // but no AccommodationRevision row — still something to publish.
+      if (!revision && pendingImageCount === 0) {
         res.status(404).json({ status: "error", message: "No pending changes to publish" });
         return;
       }
 
-      // Re-validate the stored payload — it was valid when saved, but the
-      // schema or referenced destination may have moved on since.
-      const parseResult = updateAccommodationSchema.safeParse(revision.data);
-      if (!parseResult.success) {
-        res.status(400).json({
-          status: "error",
-          message: "The pending revision is no longer valid — re-edit and save again before publishing.",
-          errors: parseResult.error.flatten(),
-        });
-        return;
-      }
-      const input = parseResult.data;
+      let input: UpdateAccommodationInput = {};
+      if (revision) {
+        // Re-validate the stored payload — it was valid when saved, but
+        // the schema or referenced destination may have moved on since.
+        const parseResult = updateAccommodationSchema.safeParse(revision.data);
+        if (!parseResult.success) {
+          res.status(400).json({
+            status: "error",
+            message: "The pending revision is no longer valid — re-edit and save again before publishing.",
+            errors: parseResult.error.flatten(),
+          });
+          return;
+        }
+        input = parseResult.data;
 
-      if (!(await destinationExists(input.destinationId))) {
-        res.status(400).json({
-          status: "error",
-          message: "The pending revision references a destination that no longer exists — re-edit and save again.",
-        });
-        return;
+        if (!(await destinationExists(input.destinationId))) {
+          res.status(400).json({
+            status: "error",
+            message: "The pending revision references a destination that no longer exists — re-edit and save again.",
+          });
+          return;
+        }
+
+        if (!(await isOwnHeroImage(id, input.heroImageId))) {
+          res.status(400).json({
+            status: "error",
+            message: `heroImageId ${input.heroImageId} no longer references an image belonging to this accommodation — re-edit and save again.`,
+          });
+          return;
+        }
       }
 
       const updated = await applyAccommodationUpdate(id, input, existing, req.user!.userId);
@@ -580,6 +743,7 @@ accommodationsRouter.post(
           cloudinaryPublicId: input.cloudinaryPublicId || null,
           sortOrder: input.sortOrder,
           altText: input.altText,
+          status: existing.status === ItineraryStatus.PUBLISHED ? "PENDING_ADD" : "LIVE",
         },
       });
 
@@ -599,12 +763,37 @@ accommodationsRouter.delete(
       const accommodationId = req.params.id as string;
       const imageId = req.params.imageId as string;
 
-      const image = await prisma.accommodationImage.findFirst({
-        where: { id: imageId, accommodationId },
-      });
+      const [accommodation, image] = await Promise.all([
+        prisma.accommodation.findUnique({ where: { id: accommodationId }, select: { status: true } }),
+        prisma.accommodationImage.findFirst({ where: { id: imageId, accommodationId } }),
+      ]);
 
+      if (!accommodation) {
+        res.status(404).json({ status: "error", message: "Accommodation not found" });
+        return;
+      }
       if (!image) {
         res.status(404).json({ status: "error", message: "Image not found on this accommodation" });
+        return;
+      }
+
+      const isPublished = accommodation.status === ItineraryStatus.PUBLISHED;
+
+      if (isPublished && image.status === "LIVE") {
+        const staged = await prisma.accommodationImage.update({
+          where: { id: imageId },
+          data: { status: "PENDING_DELETE" },
+        });
+        res.json({ status: "ok", message: "Image staged for removal — publish changes to make it final.", image: staged });
+        return;
+      }
+
+      if (isPublished && image.status === "PENDING_DELETE") {
+        const restored = await prisma.accommodationImage.update({
+          where: { id: imageId },
+          data: { status: "LIVE" },
+        });
+        res.json({ status: "ok", message: "Removal undone.", image: restored });
         return;
       }
 
@@ -625,13 +814,13 @@ accommodationsRouter.delete(
   }
 );
 
-// ─── 10. PATCH /accommodations/:id/images/reorder — Set gallery/hero order
+// ─── 10. PATCH /accommodations/:id/images/reorder — Set gallery order ──
 // Registered before the /:imageId route below so Express doesn't try to
-// match "reorder" as an imageId. The accommodation's hero image is simply
-// images[0] by sortOrder (see publicAccommodationDetailSelect), so this
-// is the only way to change it — the dashboard's "Set as hero" and the
-// gallery's reorder arrows both call this, saving immediately like
-// POST/DELETE images above.
+// match "reorder" as an imageId. Order is purely cosmetic now — the hero
+// image is the explicit Accommodation.heroImageId set via PUT /:id (the
+// dashboard's "Set as hero" button), not position. For a PUBLISHED
+// accommodation the new order is staged into pendingSortOrder rather than
+// written live; DRAFT/IN_REVIEW records write straight through.
 accommodationsRouter.patch(
   "/:id/images/reorder",
   requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
@@ -640,7 +829,7 @@ accommodationsRouter.patch(
       const accommodationId = req.params.id as string;
       const existing = await prisma.accommodation.findUnique({
         where: { id: accommodationId },
-        select: { images: { select: { id: true } } },
+        select: { status: true, images: { select: { id: true } } },
       });
 
       if (!existing) {
@@ -674,11 +863,21 @@ accommodationsRouter.patch(
         return;
       }
 
+      const isPublished = existing.status === ItineraryStatus.PUBLISHED;
       const images = await prisma.$transaction(
-        order.map((id, index) => prisma.accommodationImage.update({ where: { id }, data: { sortOrder: index } }))
+        order.map((id, index) =>
+          prisma.accommodationImage.update({
+            where: { id },
+            data: isPublished ? { pendingSortOrder: index } : { sortOrder: index },
+          })
+        )
       );
 
-      res.json({ status: "ok", images: images.sort((a, b) => a.sortOrder - b.sortOrder) });
+      res.json({
+        status: "ok",
+        images: images.sort((a, b) => (a.pendingSortOrder ?? a.sortOrder) - (b.pendingSortOrder ?? b.sortOrder)),
+        pendingReview: isPublished,
+      });
     } catch (err) {
       next(err);
     }
@@ -686,6 +885,8 @@ accommodationsRouter.patch(
 );
 
 // ─── 11. PATCH /accommodations/:id/images/:imageId — Update alt text ──
+// Same staging rule as reorder above: a LIVE image on a PUBLISHED
+// accommodation gets pendingAltText instead of a live write.
 accommodationsRouter.patch(
   "/:id/images/:imageId",
   requireRole(Role.ADMIN, Role.EDITOR, Role.AUTHOR),
@@ -694,7 +895,15 @@ accommodationsRouter.patch(
       const accommodationId = req.params.id as string;
       const imageId = req.params.imageId as string;
 
-      const image = await prisma.accommodationImage.findFirst({ where: { id: imageId, accommodationId } });
+      const [accommodation, image] = await Promise.all([
+        prisma.accommodation.findUnique({ where: { id: accommodationId }, select: { status: true } }),
+        prisma.accommodationImage.findFirst({ where: { id: imageId, accommodationId } }),
+      ]);
+
+      if (!accommodation) {
+        res.status(404).json({ status: "error", message: "Accommodation not found" });
+        return;
+      }
       if (!image) {
         res.status(404).json({ status: "error", message: "Image not found on this accommodation" });
         return;
@@ -710,12 +919,15 @@ accommodationsRouter.patch(
         return;
       }
 
+      const shouldStage = accommodation.status === ItineraryStatus.PUBLISHED && image.status === "LIVE";
       const updated = await prisma.accommodationImage.update({
         where: { id: imageId },
-        data: { altText: parseResult.data.altText ?? null },
+        data: shouldStage
+          ? { pendingAltText: parseResult.data.altText ?? "" }
+          : { altText: parseResult.data.altText ?? null },
       });
 
-      res.json({ status: "ok", image: updated });
+      res.json({ status: "ok", image: updated, pendingReview: shouldStage });
     } catch (err) {
       next(err);
     }
