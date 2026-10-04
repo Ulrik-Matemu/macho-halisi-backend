@@ -3,7 +3,14 @@ import { EnquiryStatus, Prisma, Role } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
-import { enquiryListQuerySchema, updateEnquirySchema, enquiryIdSchema } from "./enquiries.schemas.js";
+import {
+  ENQUIRY_EXPORT_LIMIT,
+  bulkEnquirySchema,
+  enquiryExportQuerySchema,
+  enquiryIdSchema,
+  enquiryListQuerySchema,
+  updateEnquirySchema,
+} from "./enquiries.schemas.js";
 
 // Staff-side enquiry inbox. Submissions arrive anonymously via
 // POST /public/enquiries; everything here is ADMIN-only since enquiries
@@ -36,6 +43,20 @@ const enquirySelect = {
   handledBy: { select: { id: true, email: true } },
 } satisfies Prisma.EnquirySelect;
 
+// Shared by the inbox list and the export so both match the same rows.
+function buildWhere(status?: EnquiryStatus, q?: string): Prisma.EnquiryWhereInput {
+  return {
+    ...(status && { status }),
+    ...(q && {
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+        { phone: { contains: q } },
+      ],
+    }),
+  };
+}
+
 // GET /enquiries — paginated inbox with status filter and search
 enquiriesRouter.get("/", async (req, res, next) => {
   try {
@@ -51,16 +72,7 @@ enquiriesRouter.get("/", async (req, res, next) => {
 
     const { page, limit, status, q } = parseResult.data;
     const skip = (page - 1) * limit;
-    const where: Prisma.EnquiryWhereInput = {
-      ...(status && { status }),
-      ...(q && {
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { email: { contains: q, mode: "insensitive" } },
-          { phone: { contains: q } },
-        ],
-      }),
-    };
+    const where = buildWhere(status, q);
 
     const [total, enquiries] = await Promise.all([
       prisma.enquiry.count({ where }),
@@ -104,6 +116,79 @@ enquiriesRouter.get("/stats", async (_req, res, next) => {
       total: Object.values(byStatus).reduce((a, b) => a + b, 0),
       last7d,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /enquiries/export — every matching enquiry (unpaginated, capped) for
+// PDF/XLSX reports built in the dashboard. `ids` overrides the filters.
+enquiriesRouter.get("/export", async (req, res, next) => {
+  try {
+    const parseResult = enquiryExportQuerySchema.safeParse(req.query);
+    if (!parseResult.success) {
+      res.status(400).json({
+        status: "error",
+        message: "Invalid query parameters",
+        errors: parseResult.error.flatten(),
+      });
+      return;
+    }
+
+    const { status, q, ids } = parseResult.data;
+    const where: Prisma.EnquiryWhereInput = ids ? { id: { in: ids } } : buildWhere(status, q);
+    const enquiries = await prisma.enquiry.findMany({
+      where,
+      take: ENQUIRY_EXPORT_LIMIT + 1,
+      orderBy: { createdAt: "desc" },
+      select: enquirySelect,
+    });
+
+    res.json({
+      status: "ok",
+      data: enquiries.slice(0, ENQUIRY_EXPORT_LIMIT),
+      truncated: enquiries.length > ENQUIRY_EXPORT_LIMIT,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /enquiries/bulk — delete or re-status several enquiries at once
+enquiriesRouter.post("/bulk", async (req, res, next) => {
+  try {
+    const parseResult = bulkEnquirySchema.safeParse(req.body);
+    if (!parseResult.success) {
+      res.status(400).json({
+        status: "error",
+        message: "Validation failed",
+        errors: parseResult.error.flatten(),
+      });
+      return;
+    }
+
+    const { ids, action, status } = parseResult.data;
+    const where = { id: { in: ids } };
+
+    if (action === "delete") {
+      const { count } = await prisma.enquiry.deleteMany({ where });
+      res.json({ status: "ok", count });
+      return;
+    }
+
+    const count = await prisma.$transaction(async (tx) => {
+      // Stamp the first response only, as the single PATCH does.
+      if (status === EnquiryStatus.RESPONDED) {
+        await tx.enquiry.updateMany({ where: { ...where, respondedAt: null }, data: { respondedAt: new Date() } });
+      }
+      const result = await tx.enquiry.updateMany({
+        where,
+        data: { status, handledById: req.user!.userId },
+      });
+      return result.count;
+    });
+
+    res.json({ status: "ok", count });
   } catch (err) {
     next(err);
   }
