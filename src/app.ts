@@ -26,7 +26,7 @@ export function createApp() {
   app.set("trust proxy", 1);
 
   // ── Security & parsing ───────────────────────
-  app.use(helmet());
+  app.use((helmet as any)());
   app.use(cors({ origin: env.CORS_ORIGIN }));
   app.use(express.json());
 
