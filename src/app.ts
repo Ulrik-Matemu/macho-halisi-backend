@@ -1,5 +1,5 @@
 import express from "express";
-import * as helmet from "helmet";
+import helmet = require("helmet");
 import cors from "cors";
 import morgan from "morgan";
 import { env } from "./config/env.js";
@@ -26,7 +26,7 @@ export function createApp() {
   app.set("trust proxy", 1);
 
   // ── Security & parsing ───────────────────────
-  app.use(helmet.default());
+  app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN }));
   app.use(express.json());
 
