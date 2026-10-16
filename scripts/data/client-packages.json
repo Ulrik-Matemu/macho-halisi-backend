@@ -1,0 +1,557 @@
+[
+ {
+  "days": 7,
+  "items": [
+   {
+    "dayNumber": 1,
+    "title": "Arrival at Kilimanjaro International Airport / Namanga – Transfer to Arusha",
+    "description": "Upon arrival at Kilimanjaro International Airport or the Namanga border, you will be warmly welcomed by your professional safari guide and transferred to Arusha. Relax and unwind at your lodge while enjoying the peaceful surroundings and preparing for your exciting safari through Tanzania's renowned Northern Circuit.",
+    "meal": "Full Board",
+    "accommodation": "Arusha Tanzania Safari Lodge – Double/Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 2,
+    "title": "Arusha to Tarangire National Park – Karatu",
+    "description": "After breakfast, depart for Tarangire National Park, a spectacular wildlife reserve renowned for its ancient baobab trees and impressive elephant herds. Spend the day exploring the park's diverse landscapes while searching for lions, giraffes, zebras, wildebeests, buffaloes, and a rich variety of birdlife. Enjoy a picnic lunch before continuing your afternoon game drive. Later, drive to Karatu for your overnight stay.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Karatu Kudu Lodge – Double/Twin Room",
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   },
+   {
+    "dayNumber": 3,
+    "title": "Karatu to Serengeti National Park via Ngorongoro Crater",
+    "description": "Leave Karatu after breakfast and travel to the magnificent Ngorongoro Conservation Area. Descend into the world-famous Ngorongoro Crater for an unforgettable game drive, where you may encounter elephants, lions, buffaloes, hippos, hyenas, and the endangered black rhino. After enjoying a picnic lunch on the crater floor, continue into the endless plains of Serengeti National Park, where wildlife viewing begins immediately upon arrival.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Enkirari Wilderness Camp – Double/Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 4,
+    "title": "Full-Day Game Drive in Serengeti National Park",
+    "description": "Spend a full day exploring the vast plains of Serengeti National Park, one of Africa's premier safari destinations. Accompanied by your experienced guide, search for the legendary Big Five while encountering cheetahs, giraffes, zebras, wildebeests, elephants, and countless other wildlife species. Every game drive offers new and unforgettable wildlife encounters across the iconic Serengeti ecosystem.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Serena Safari Lodge – Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 5,
+    "title": "Another Full-Day Game Drive in Serengeti National Park",
+    "description": "Enjoy another exciting day discovering different regions of the Serengeti. Explore riverine forests, rocky kopjes, and endless grasslands that provide habitat for an extraordinary diversity of wildlife. Your guide will take you to some of the park's best game-viewing areas, maximizing your chances of witnessing remarkable predator-prey interactions and other unforgettable safari moments.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Enkirari Wilderness Camp – Double/Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 6,
+    "title": "Serengeti to Karatu via Olduvai Gorge & Shifting Sands",
+    "description": "Enjoy a final morning game drive as you depart Serengeti National Park before traveling through the Ngorongoro Conservation Area. Visit the world-renowned Olduvai Gorge, one of the most important archaeological sites in the world, where you will explore the museum, Mary Leakey's excavation camp, and nearby archaeological sites on a guided walk. Continue to the fascinating Shifting Sands, a unique volcanic ash dune constantly reshaped by the wind, before driving to Karatu.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Karatu Kudu Lodge – Double/Twin Room",
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   },
+   {
+    "dayNumber": 7,
+    "title": "Karatu to Kilimanjaro International Airport / Namanga via Maasai Cultural Boma",
+    "description": "After breakfast, depart Karatu and begin your journey back toward Kilimanjaro International Airport or the Namanga border. Along the way, visit a traditional Maasai Cultural Boma, where you will gain insight into the customs, traditions, and daily life of one of East Africa's most iconic communities. Continue your scenic drive through northern Tanzania, arriving at the airport in time for your late afternoon international departure flight, marking the end of your unforgettable Tanzanian safari.",
+    "meal": "Breakfast and Lunch",
+    "accommodation": null,
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   }
+  ]
+ },
+ {
+  "days": 9,
+  "items": [
+   {
+    "dayNumber": 1,
+    "title": "Arrival at Kilimanjaro International Airport / Namanga – Transfer to Arusha",
+    "description": "Upon arrival at Kilimanjaro International Airport or the Namanga border, you will be warmly welcomed by your professional safari guide and transferred to Arusha, the gateway to Tanzania's renowned Northern Safari Circuit. Depending on your arrival time, you may relax at the hotel and enjoy views of Mount Meru while preparing for the exciting adventure ahead.",
+    "meal": "Full Board",
+    "accommodation": "Arusha Gran Meliá Hotel – Double/Twin Meru View Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 2,
+    "title": "Arusha National Park – Game Drive & Bush Walking",
+    "description": "After breakfast, depart for nearby Arusha National Park, a scenic gem known for its lush forests, open grasslands, volcanic landscapes, and the beautiful Momella Lakes. Enjoy a game drive through the park where you may encounter giraffes, buffaloes, zebras, warthogs, flamingos, and black-and-white colobus monkeys. Later, experience a guided bush walk accompanied by an armed park ranger, offering a unique opportunity to explore the African wilderness on foot while learning about the park's flora and fauna.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Arusha Gran Meliá Hotel – Double/Twin Meru View Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 3,
+    "title": "Arusha to Tarangire National Park",
+    "description": "Leave Arusha after breakfast and journey to Tarangire National Park, one of Tanzania's most spectacular wildlife destinations. Famous for its towering baobab trees and enormous elephant herds, Tarangire offers exceptional wildlife viewing throughout the day. As you explore the park, keep an eye out for lions, leopards, giraffes, wildebeests, zebras, and a wide variety of birdlife. Enjoy a picnic lunch before continuing your afternoon game drive.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Tarangire Sopa Lodge – Double/Twin Room",
+    "dest": "tarangire",
+    "lat": -3.833,
+    "lng": 35.95
+   },
+   {
+    "dayNumber": 4,
+    "title": "Tarangire National Park to Lake Eyasi via Karatu",
+    "description": "Following breakfast, travel through the scenic Great Rift Valley towards Lake Eyasi, home to the indigenous Hadzabe hunter-gatherer community. Spend time learning about one of Africa's last remaining hunter-gatherer tribes as they demonstrate their traditional hunting techniques, survival skills, and unique way of life. This cultural experience offers a fascinating insight into centuries-old traditions before continuing to your lodge overlooking the Great Rift Valley.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Lake Manyara Serena Lodge – Suite Twin",
+    "dest": "manyara",
+    "lat": -3.6,
+    "lng": 35.75
+   },
+   {
+    "dayNumber": 5,
+    "title": "Karatu to Serengeti National Park via Ngorongoro Conservation Area",
+    "description": "Depart Karatu after breakfast and travel through the spectacular Ngorongoro Conservation Area, enjoying breathtaking views of the crater highlands along the way. Continue across the endless plains into Serengeti National Park, Tanzania's most famous wildlife sanctuary and home to an incredible concentration of animals. Wildlife viewing begins immediately upon entering the park as you make your way toward your lodge.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Serena Safari Lodge – Double/Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 6,
+    "title": "Full-Day Game Drive in Serengeti National Park",
+    "description": "Spend a full day exploring the vast plains of Serengeti National Park, one of Africa's premier safari destinations. Search for the legendary Big Five while encountering large herds of wildebeest, zebras, gazelles, giraffes, elephants, cheetahs, and predators roaming the open savannah. Your experienced guide will take you to some of the park's best wildlife viewing areas while sharing fascinating insights into the Serengeti ecosystem.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Serena Safari Lodge – Double/Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 7,
+    "title": "Another Full-Day Game Drive in Serengeti National Park",
+    "description": "Enjoy another exciting day discovering different regions of the Serengeti. This additional game drive provides greater opportunities to witness remarkable wildlife encounters and explore diverse habitats, from open grasslands to riverine forests and rocky kopjes where lions and leopards often rest. Every game drive offers new experiences, making each day unique.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Serena Safari Lodge – Double/Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 8,
+    "title": "Serengeti to Karatu via Olduvai Gorge & Shifting Sands",
+    "description": "Enjoy a final morning game drive as you depart Serengeti National Park before traveling back through the Ngorongoro Conservation Area. En route, visit the world-famous Olduvai Gorge, one of the most significant paleoanthropological sites on earth, where important discoveries about early human evolution were made. Continue to the fascinating Shifting Sands, a unique crescent-shaped volcanic ash dune slowly moved by the wind, before visiting a traditional Maasai Cultural Boma to learn about the customs, traditions, and lifestyle of the Maasai people. Continue to Karatu for your overnight stay.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Lake Manyara Serena Lodge – Suite Twin",
+    "dest": "manyara",
+    "lat": -3.6,
+    "lng": 35.75
+   },
+   {
+    "dayNumber": 9,
+    "title": "Karatu to Kilimanjaro International Airport",
+    "description": "After a relaxed breakfast, depart Karatu and drive back to Kilimanjaro International Airport. Enjoy the scenic journey through northern Tanzania as your guide transfers you in time for your late afternoon international departure flight, bringing your unforgettable Tanzanian safari adventure to a close.",
+    "meal": "Breakfast",
+    "accommodation": null,
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   }
+  ]
+ },
+ {
+  "days": 10,
+  "items": [
+   {
+    "dayNumber": 1,
+    "title": "Arrival at Kilimanjaro International Airport / Namanga – Transfer to Arusha",
+    "description": "Upon arrival at Kilimanjaro International Airport or the Namanga border, you will be warmly welcomed by your professional safari guide and transferred to Arusha. Settle into your lodge and enjoy the peaceful surroundings as you prepare for the adventure ahead. Depending on your arrival time, you may relax at the lodge or explore the nearby area at your leisure.",
+    "meal": "Full Board",
+    "accommodation": "Karama Lodge, Arusha – Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 2,
+    "title": "Arusha to Tarangire National Park – Karatu",
+    "description": "After breakfast, depart for Tarangire National Park, one of Tanzania's most scenic wildlife reserves, renowned for its ancient baobab trees and impressive elephant herds. Spend the day exploring the park's diverse landscapes while searching for lions, giraffes, zebras, wildebeests, buffaloes, and an abundance of birdlife. Enjoy a picnic lunch inside the park before continuing your afternoon game drive. Later, drive to Karatu for your overnight stay.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Kudu Lodge – Twin Room",
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   },
+   {
+    "dayNumber": 3,
+    "title": "Karatu to Serengeti National Park via Ngorongoro Crater",
+    "description": "Leave Karatu after breakfast and descend into the magnificent Ngorongoro Crater for an unforgettable game drive. This UNESCO World Heritage Site is home to one of Africa's highest concentrations of wildlife, including elephants, lions, buffaloes, hippos, hyenas, and, with a bit of luck, the endangered black rhino. After enjoying a picnic lunch on the crater floor, continue your journey across the Ngorongoro Conservation Area into the endless plains of Serengeti National Park, where wildlife viewing begins immediately upon arrival.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Acacia Central Tented Lodge – Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 4,
+    "title": "Full-Day Game Drive in Serengeti National Park",
+    "description": "Spend a full day exploring the vast plains of Serengeti National Park, one of Africa's finest safari destinations. Your experienced guide will lead you through different habitats in search of the Big Five, along with cheetahs, giraffes, zebras, wildebeests, and countless other wildlife species. Enjoy a picnic lunch in the bush before continuing your afternoon game drive.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Acacia Central Tented Lodge – Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 5,
+    "title": "Another Full-Day Game Drive in Serengeti National Park",
+    "description": "Enjoy another exciting day discovering new areas of the Serengeti. With its endless plains, rocky kopjes, and seasonal rivers, the park offers exceptional wildlife viewing throughout the year. Every game drive presents different opportunities to witness predator-prey interactions and observe the remarkable diversity of animals that call the Serengeti home.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Acacia Central Tented Lodge – Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 6,
+    "title": "Serengeti to Karatu via Olduvai Gorge & Shifting Sands",
+    "description": "Enjoy a final morning game drive as you depart Serengeti National Park before traveling through the Ngorongoro Conservation Area. Visit the world-renowned Olduvai Gorge, one of the most significant archaeological sites in human history, where you will explore the museum, Mary Leakey's excavation camp, and nearby archaeological sites on a guided bush walk. Continue to the fascinating Shifting Sands, a unique volcanic ash dune that slowly moves across the plains with the wind, before proceeding to Karatu.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Kudu Lodge – Twin Room",
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   },
+   {
+    "dayNumber": 7,
+    "title": "Lake Eyasi Cultural Experience",
+    "description": "After breakfast, travel to Lake Eyasi for an authentic cultural experience with the Hadzabe people, one of the last remaining hunter-gatherer communities in Africa. Join them on a traditional hunting excursion, learn about their survival techniques, and enjoy a guided bush walk through their homeland. Later, visit a nearby waterfall before returning to Karatu in the afternoon.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Kudu Lodge – Twin Room",
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   },
+   {
+    "dayNumber": 8,
+    "title": "Karatu to Lake Natron & Ol Doinyo Lengai",
+    "description": "Depart Karatu and journey through the dramatic landscapes of the Great Rift Valley to Lake Natron, one of Tanzania's most spectacular and remote destinations. Enjoy a guided walk along the lake shore, famous for its flamingos and striking red-hued waters, followed by a visit to the beautiful waterfalls hidden within the surrounding gorge. Later, experience the rich traditions of the Maasai people during a cultural village visit before settling into your lodge with magnificent views of Ol Doinyo Lengai, Tanzania's active volcanic mountain.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "African Lake Natron Safari Lodge – Twin Room",
+    "dest": "natron",
+    "lat": -2.4167,
+    "lng": 36.0
+   },
+   {
+    "dayNumber": 9,
+    "title": "Lake Natron to Karatu via Mto wa Mbu Cultural Tour",
+    "description": "After breakfast, depart Lake Natron and travel to the vibrant village of Mto wa Mbu, one of Tanzania's most culturally diverse communities. Enjoy a guided cultural tour featuring a village walk, bicycle ride through the community, visits to local farms, the Maasai market, and workshops displaying traditional Makonde carvings and local handicrafts. Continue to Karatu for your final overnight stay.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Kudu Lodge – Twin Room",
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   },
+   {
+    "dayNumber": 10,
+    "title": "Karatu to Kilimanjaro International Airport / Namanga",
+    "description": "After breakfast, depart Karatu and drive back to Kilimanjaro International Airport or the Namanga border. Enjoy the scenic journey through northern Tanzania as your guide transfers you in time for your late afternoon international departure, marking the end of your unforgettable Tanzanian safari.",
+    "meal": "Breakfast",
+    "accommodation": null,
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   }
+  ]
+ },
+ {
+  "days": 12,
+  "items": [
+   {
+    "dayNumber": 1,
+    "title": "Arrival at Kilimanjaro International Airport / Namanga",
+    "description": "Upon arrival at Kilimanjaro International Airport or the Namanga border, you will be warmly welcomed by your representative and transferred to your lodge near the airport. Settle in, relax after your journey, and enjoy a briefing on your upcoming Mount Kilimanjaro adventure while your guides conduct a final equipment check.",
+    "meal": "Full Board",
+    "accommodation": "Airport Planet Lodge – Double/Twin Room",
+    "dest": "kia",
+    "lat": -3.4294,
+    "lng": 37.0745
+   },
+   {
+    "dayNumber": 2,
+    "title": "Marangu Gate to Mandara Hut",
+    "description": "After an early breakfast, transfer to Marangu Gate where registration and park formalities are completed before beginning your ascent through the lush rainforest. The trail is rich with giant ferns, ancient trees, and colorful birdlife, with opportunities to spot blue monkeys and black-and-white colobus monkeys. Arrive at Mandara Hut in the afternoon to relax and prepare for the next stage of the climb.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Mandara Hut",
+    "dest": "kili",
+    "lat": -3.2,
+    "lng": 37.4833
+   },
+   {
+    "dayNumber": 3,
+    "title": "Mandara Hut to Horombo Hut",
+    "description": "Today's trek leaves the rainforest behind as you enter the open moorland zone. Enjoy spectacular views of Mawenzi Peak while crossing rolling heathland dotted with giant lobelias and groundsels. The gradual climb allows time for acclimatization before reaching Horombo Hut.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Horombo Hut",
+    "dest": "kili",
+    "lat": -3.1833,
+    "lng": 37.4667
+   },
+   {
+    "dayNumber": 4,
+    "title": "Horombo Hut to Kibo Hut",
+    "description": "Continue your ascent across the alpine desert, a dramatic landscape of volcanic rock and wide-open scenery. The route offers breathtaking views of both Kibo and Mawenzi peaks as you steadily make your way toward Kibo Hut, where you will rest and prepare for the summit attempt later that night.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Kibo Hut",
+    "dest": "kili",
+    "lat": -3.1,
+    "lng": 37.4333
+   },
+   {
+    "dayNumber": 5,
+    "title": "Summit Attempt – Uhuru Peak to Horombo Hut",
+    "description": "Around midnight, begin your summit ascent under a sky filled with stars. Climb steadily to Gilman's Point before continuing along the crater rim to Uhuru Peak, the highest point in Africa at 5,895 meters. Celebrate your incredible achievement before descending back to Kibo Hut for a short rest and continuing to Horombo Hut for your overnight stay.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Horombo Hut",
+    "dest": "kili",
+    "lat": -3.0674,
+    "lng": 37.3556
+   },
+   {
+    "dayNumber": 6,
+    "title": "Horombo Hut to Mandara Hut",
+    "description": "After breakfast, descend through the beautiful moorland and into the rainforest. The changing scenery offers excellent opportunities for photography while enjoying a less demanding day on the mountain as you continue toward Mandara Hut.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Mandara Hut",
+    "dest": "kili",
+    "lat": -3.2,
+    "lng": 37.4833
+   },
+   {
+    "dayNumber": 7,
+    "title": "Mandara Hut to Marangu Gate",
+    "description": "Complete your final descent through the rainforest to Marangu Gate, where successful climbers receive their Mount Kilimanjaro certificates. Celebrate your accomplishment with your mountain crew before departing the national park.",
+    "meal": "Breakfast and Lunch",
+    "accommodation": null,
+    "dest": "kili",
+    "lat": -3.2,
+    "lng": 37.4833
+   },
+   {
+    "dayNumber": 8,
+    "title": "Transfer from Marangu Gate to Arusha",
+    "description": "After meeting your safari guide, drive to Arusha where you can enjoy a well-deserved rest following your Kilimanjaro climb. Spend the remainder of the day relaxing at the lodge and preparing for the safari portion of your journey.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Arusha Tanzania Safari Lodge – Double/Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 9,
+    "title": "Arusha to Ngorongoro Crater – Karatu",
+    "description": "Depart Arusha after breakfast and travel to the magnificent Ngorongoro Conservation Area. Descend into the world-famous Ngorongoro Crater for an unforgettable game drive, where you have excellent opportunities to encounter elephants, lions, buffaloes, hippos, hyenas, and the endangered black rhino. Enjoy a picnic lunch on the crater floor before continuing to Karatu for your overnight stay.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Kudu Lodge – Double/Twin Room",
+    "dest": "karatu",
+    "lat": -3.3333,
+    "lng": 35.6667
+   },
+   {
+    "dayNumber": 10,
+    "title": "Karatu to Lake Natron & Ol Doinyo Lengai",
+    "description": "After breakfast, journey through the spectacular landscapes of the Great Rift Valley to Lake Natron, one of Tanzania's most unique and remote destinations. Explore the shores of the alkaline lake, home to thousands of flamingos, before visiting the nearby waterfalls hidden within a narrow gorge. After dinner, begin a challenging nighttime ascent of Ol Doinyo Lengai, the sacred mountain of the Maasai and the world's only active carbonatite volcano, climbing under the stars for an unforgettable adventure.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "African Lake Natron Safari Lodge – Double/Twin Room",
+    "dest": "natron",
+    "lat": -2.4167,
+    "lng": 36.0
+   },
+   {
+    "dayNumber": 11,
+    "title": "Lake Natron to Arusha via Maasai Cultural Boma",
+    "description": "Following your morning activities, depart Lake Natron and travel back toward Arusha. Along the way, visit a traditional Maasai Cultural Boma, where you will learn about the customs, traditions, and daily life of one of East Africa's most iconic communities. Continue to Arusha and enjoy a relaxing evening at your lodge.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Arusha Tanzania Safari Lodge – Double/Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 12,
+    "title": "Arusha National Park & Departure",
+    "description": "Enjoy breakfast before departing for nearby Arusha National Park. Discover the park's diverse habitats during a scenic game drive before joining an armed ranger for a guided bush walk, offering a unique opportunity to experience Tanzania's wildlife on foot. After your safari and lunch, transfer to Kilimanjaro International Airport in time for your evening international departure, bringing your unforgettable Tanzania adventure to a close.",
+    "meal": "Breakfast and Lunch",
+    "accommodation": null,
+    "dest": "arusha_np",
+    "lat": -3.2333,
+    "lng": 36.8833
+   }
+  ]
+ },
+ {
+  "days": 15,
+  "items": [
+   {
+    "dayNumber": 1,
+    "title": "Arrival at Kilimanjaro International Airport / Namanga – Transfer to Arusha",
+    "description": "Upon arrival at Kilimanjaro International Airport or the Namanga border, you will be warmly welcomed by your professional safari guide and transferred to Arusha. Settle into your lodge and enjoy the tranquil surroundings while preparing for your unforgettable safari adventure through Northern Tanzania.",
+    "meal": "Full Board",
+    "accommodation": "Arusha Serena Hotel – Double/Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 2,
+    "title": "Arusha to Tarangire National Park",
+    "description": "After breakfast, depart for Tarangire National Park, one of Tanzania's most scenic wildlife reserves, celebrated for its towering baobab trees and large elephant herds. Spend the day exploring the park's diverse landscapes while searching for lions, giraffes, zebras, wildebeests, buffaloes, and a remarkable variety of birdlife. Enjoy a picnic lunch before continuing your afternoon game drive.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Tarangire Sopa Lodge – Double/Twin Room",
+    "dest": "tarangire",
+    "lat": -3.833,
+    "lng": 35.95
+   },
+   {
+    "dayNumber": 3,
+    "title": "Tarangire to Ngorongoro Crater",
+    "description": "Leave Tarangire after breakfast and journey to the spectacular Ngorongoro Conservation Area. Descend into the world-famous Ngorongoro Crater for a full-day game drive across the crater floor, home to one of Africa's highest concentrations of wildlife. Keep watch for elephants, lions, buffaloes, hippos, hyenas, and, with a little luck, the endangered black rhino. In the afternoon, ascend the crater rim and check in to your lodge overlooking this natural wonder.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Ngorongoro Serena Safari Lodge – Double/Twin Room",
+    "dest": "ngorongoro",
+    "lat": -3.1608,
+    "lng": 35.5885
+   },
+   {
+    "dayNumber": 4,
+    "title": "Ngorongoro to Serengeti National Park",
+    "description": "After breakfast, travel through the Ngorongoro Conservation Area and continue into the legendary Serengeti National Park. As you cross the endless plains, wildlife viewing begins immediately, offering opportunities to encounter giraffes, elephants, zebras, wildebeests, and the park's famous predators. Arrive at your lodge in time to relax before dinner.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Serena Safari Lodge – Double/Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 5,
+    "title": "Full-Day Game Drive in Serengeti National Park",
+    "description": "Spend the entire day exploring the vast Serengeti ecosystem, renowned for its exceptional wildlife and breathtaking landscapes. Your experienced guide will lead you through different habitats in search of the Big Five while sharing fascinating insights into the park's remarkable ecosystem. Enjoy a picnic lunch surrounded by the African wilderness before continuing your afternoon game drive.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Serengeti Serena Safari Lodge – Double/Twin Room",
+    "dest": "serengeti",
+    "lat": -2.45,
+    "lng": 34.83
+   },
+   {
+    "dayNumber": 6,
+    "title": "Serengeti to Karatu via Olduvai Gorge & Shifting Sands",
+    "description": "Enjoy a final morning game drive as you depart Serengeti National Park before traveling through the Ngorongoro Conservation Area. Visit the world-famous Olduvai Gorge, one of the most significant archaeological sites in human history, where you will explore the museum, Mary Leakey's excavation camp, and nearby archaeological sites. Continue to the fascinating Shifting Sands, a unique volcanic ash dune slowly shaped by the wind, before proceeding to Karatu.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Ngorongoro Oldeani Mountain Lodge – Double/Twin Room",
+    "dest": "ngorongoro",
+    "lat": -3.1608,
+    "lng": 35.5885
+   },
+   {
+    "dayNumber": 7,
+    "title": "Lake Eyasi Cultural Experience",
+    "description": "After breakfast, drive to Lake Eyasi for an authentic cultural encounter with the Hadzabe people, one of Africa's last remaining hunter-gatherer communities. Join them on a traditional hunting excursion, enjoy a guided bush walk, learn about their ancient survival techniques, and visit a nearby waterfall before returning to Karatu.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Ngorongoro Oldeani Mountain Lodge – Double/Twin Room",
+    "dest": "ngorongoro",
+    "lat": -3.1608,
+    "lng": 35.5885
+   },
+   {
+    "dayNumber": 8,
+    "title": "Karatu to Arusha via Maasai Boma & Mto wa Mbu Cultural Tour",
+    "description": "Depart Karatu after breakfast and stop at a traditional Maasai Cultural Boma to experience the customs, dances, and lifestyle of the Maasai people. Continue to the vibrant village of Mto wa Mbu for a guided cultural tour that includes a village walk, bicycle ride, local farm visit, Maasai market, and workshops featuring traditional Makonde carvings and local handicrafts before continuing to Arusha.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Arusha Serena Hotel – Double/Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 9,
+    "title": "Arusha National Park",
+    "description": "Spend the day exploring Arusha National Park, a beautiful reserve known for its lush forests, open savannah, Momella Lakes, and the towering presence of Mount Meru. Enjoy a scenic game drive followed by a guided bush walk accompanied by an armed ranger, offering a unique opportunity to experience wildlife on foot while learning about the park's flora and fauna.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Arusha Serena Hotel – Double/Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 10,
+    "title": "Lake Duluti & Arusha City",
+    "description": "After breakfast, head to the tranquil Lake Duluti for a peaceful guided canoeing excursion surrounded by lush forest and abundant birdlife. Following a hot lunch, you may choose to enjoy an optional Arusha City Tour, visiting local markets, cultural attractions, and artisan shops before returning to your hotel.",
+    "meal": "Breakfast, Lunch, and Dinner",
+    "accommodation": "Arusha Serena Hotel – Double/Twin Room",
+    "dest": "arusha",
+    "lat": -3.3869,
+    "lng": 36.683
+   },
+   {
+    "dayNumber": 11,
+    "title": "Flight to Zanzibar",
+    "description": "After breakfast, transfer to Arusha Airport for your scheduled domestic flight to Zanzibar. Upon arrival, you will be met and transferred to your boutique hotel in Stone Town. Spend the remainder of the day relaxing and enjoying the island's warm tropical atmosphere.",
+    "meal": "Breakfast and Dinner",
+    "accommodation": "Pearl of Zanzibar Boutique Hotel – Villa Lulu Double Room",
+    "dest": "zanzibar",
+    "lat": -6.1659,
+    "lng": 39.2026
+   },
+   {
+    "dayNumber": 12,
+    "title": "Zanzibar – Leisure",
+    "description": "Enjoy a leisurely day exploring Zanzibar at your own pace. Relax on the beach, stroll through the historic streets of Stone Town, or simply unwind at your boutique hotel while enjoying the island's peaceful atmosphere.",
+    "meal": "Breakfast and Dinner",
+    "accommodation": "Pearl of Zanzibar Boutique Hotel – Villa Lulu Double Room",
+    "dest": "zanzibar",
+    "lat": -6.1659,
+    "lng": 39.2026
+   },
+   {
+    "dayNumber": 13,
+    "title": "Zanzibar – Leisure",
+    "description": "Spend another day discovering the beauty of Zanzibar. You may choose to relax by the ocean, enjoy optional water activities, visit spice farms, or explore the island's rich cultural and historical heritage.",
+    "meal": "Breakfast and Dinner",
+    "accommodation": "Pearl of Zanzibar Boutique Hotel – Villa Lulu Double Room",
+    "dest": "zanzibar",
+    "lat": -6.1659,
+    "lng": 39.2026
+   },
+   {
+    "dayNumber": 14,
+    "title": "Zanzibar – Leisure",
+    "description": "Enjoy your final full day in Zanzibar. Take in the island's stunning beaches, crystal-clear waters, and laid-back atmosphere, making the most of your tropical escape before your journey home.",
+    "meal": "Breakfast and Dinner",
+    "accommodation": "Pearl of Zanzibar Boutique Hotel – Villa Lulu Double Room",
+    "dest": "zanzibar",
+    "lat": -6.1659,
+    "lng": 39.2026
+   },
+   {
+    "dayNumber": 15,
+    "title": "Departure from Zanzibar",
+    "description": "After breakfast, transfer to Zanzibar International Airport for your onward international flight. Depart with unforgettable memories of Tanzania's incredible wildlife, breathtaking landscapes, vibrant cultures, and the pristine beaches of Zanzibar.",
+    "meal": "Breakfast",
+    "accommodation": null,
+    "dest": "zanzibar",
+    "lat": -6.1659,
+    "lng": 39.2026
+   }
+  ]
+ }
+]

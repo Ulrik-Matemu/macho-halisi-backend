@@ -1,0 +1,23 @@
+[Unit]
+Description=Macho Halisi API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=machohalisi
+Group=machohalisi
+WorkingDirectory=/opt/macho-halisi/backend
+EnvironmentFile=/etc/macho-halisi/api.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/macho-halisi
+
+[Install]
+WantedBy=multi-user.target

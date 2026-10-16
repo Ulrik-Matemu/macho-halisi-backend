@@ -1,5 +1,5 @@
 import express from "express";
-import helmet = require("helmet");
+import helmet from 'helmet'
 import cors from "cors";
 import morgan from "morgan";
 import { env } from "./config/env.js";

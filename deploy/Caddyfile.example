@@ -1,0 +1,14 @@
+# /etc/caddy/Caddyfile — replace api.example.com with the real API hostname.
+# Caddy obtains and renews the HTTPS certificate automatically, but only
+# once DNS for that hostname points at this server and ports 80/443 are
+# reachable from the internet (router port-forward, or use the Cloudflare
+# Tunnel alternative described in MIGRATION.md).
+api.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:4000
+}
+
+# No domain yet? Serve plain HTTP on the LAN for testing instead:
+# :80 {
+# 	reverse_proxy 127.0.0.1:4000
+# }
