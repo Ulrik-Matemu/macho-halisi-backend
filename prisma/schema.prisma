@@ -36,6 +36,13 @@ enum EnquiryStatus {
   CLOSED
 }
 
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 enum AnalyticsEventType {
   PAGEVIEW
   EVENT
@@ -342,6 +349,12 @@ model Enquiry {
   staffNotes  String?   @db.Text
   handledById String?   @db.Uuid
   respondedAt DateTime?
+
+  // Staff-alert email delivery (src/lib/notifications.ts)
+  emailStatus   EmailStatus @default(PENDING)
+  emailAttempts Int         @default(0)
+  emailSentAt   DateTime?
+  emailError    String?     @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

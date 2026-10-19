@@ -20,6 +20,10 @@ import { generateUniqueDestinationSlug } from "../src/lib/slug.js";
  * (the public site shows "Enquire" instead of a price).
  *
  * Run with: npx tsx scripts/seed-client-packages.ts
+ *
+ * Against any non-local database (e.g. production on Render) it runs as a
+ * DRY RUN that only reports what it would archive/replace. Add
+ * --confirm-production to actually write.
  */
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -173,7 +177,42 @@ async function ensureDestination(key: string): Promise<{ id: string }> {
   });
 }
 
+function isLocalDatabase(): boolean {
+  try {
+    const host = new URL(process.env.DATABASE_URL ?? "").hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
+  const dryRun = !isLocalDatabase() && !process.argv.includes("--confirm-production");
+  if (dryRun) {
+    const host = new URL(process.env.DATABASE_URL ?? "postgresql://unknown").hostname;
+    console.log(`🔎 DRY RUN against remote database host "${host}" — nothing will be written.`);
+    const slugsToKeep = PACKAGES.map((p) => p.slug);
+    const existing = await prisma.itinerary.findMany({
+      select: { slug: true, title: true, status: true },
+      orderBy: { createdAt: "asc" },
+    });
+    console.log(`\nExisting itineraries (${existing.length}):`);
+    for (const i of existing) {
+      const action = slugsToKeep.includes(i.slug)
+        ? "WILL BE DELETED & RECREATED"
+        : i.status === "ARCHIVED"
+        ? "stays archived"
+        : "WILL BE ARCHIVED";
+      console.log(`   [${i.status}] ${i.title} (${i.slug}) -> ${action}`);
+    }
+    console.log("\nWill be created & published:");
+    for (const p of PACKAGES) console.log(`   + ${p.title} (${p.slug})`);
+    const admins = await prisma.user.count({ where: { role: "ADMIN" } });
+    console.log(`\nADMIN users available as author: ${admins}`);
+    console.log("\nRe-run with --confirm-production to apply.");
+    return;
+  }
+
   const admin = await prisma.user.findUnique({ where: { email: "admin@machohalisi.com" } });
   const author = admin ?? (await prisma.user.findFirst({ where: { role: "ADMIN" } }));
   if (!author) throw new Error("No ADMIN user found — run npm run seed:admin first.");

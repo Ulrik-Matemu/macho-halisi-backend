@@ -3,6 +3,8 @@ import { z } from "zod";
 // Blank (`FOO=`) is treated as unset rather than an invalid URL.
 const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional());
 
+const optionalString = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -43,6 +45,18 @@ const envSchema = z.object({
   // own public URL defaults to Render's RENDER_EXTERNAL_URL.
   UPTIME_SITE_URL: optionalUrl,
   UPTIME_API_URL: optionalUrl,
+  // Outbound enquiry email (src/lib/mailer.ts). Mail is skipped, with a
+  // warning, unless the sender address and password are both set.
+  EMAIL_FOR_ENQUIRIES: optionalString.pipe(z.string().email().optional()),
+  EMAIL_PASSWORD_FOR_ENQUIRIES: optionalString,
+  EMAIL_SMTP_HOST: optionalString.pipe(z.string().optional()).default("mail.twt.co.tz"),
+  EMAIL_SMTP_PORT: z.coerce.number().default(465),
+  // Comma-separated recipients of new-enquiry alerts. Test inbox plus the
+  // company address for now.
+  ENQUIRY_NOTIFY_TO: optionalString
+    .default("ulrikjosephat@gmail.com,info@machohalisi.com")
+    .transform((val) => (val ?? "").split(",").map((s) => s.trim()).filter(Boolean))
+    .pipe(z.array(z.string().email()).min(1, "ENQUIRY_NOTIFY_TO must contain at least one valid email")),
 });
 
 export const env = envSchema.parse(process.env);

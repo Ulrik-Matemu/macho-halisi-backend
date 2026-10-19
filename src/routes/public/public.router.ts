@@ -14,7 +14,7 @@ import {
   publicAccommodationDetailSelect,
 } from "./public.serializers.js";
 import { enquiryLimiter } from "../../middleware/rateLimit.js";
-import { notifyNewEnquiry } from "../../lib/notifications.js";
+import { deliverEnquiryEmail } from "../../lib/notifications.js";
 
 // Anonymous, public-facing read routes for the marketing site. Nothing in
 // this router calls requireAuth — every query here is scoped to
@@ -193,6 +193,7 @@ publicRouter.post("/enquiries", enquiryLimiter, async (req, res, next) => {
     // Honeypot tripped — answer exactly like a real success so the bot
     // gets no signal, but write nothing.
     if (website) {
+      console.warn(`Enquiry dropped by honeypot (field value: ${JSON.stringify(website.slice(0, 50))})`);
       res.status(201).json({
         status: "ok",
         message: "Enquiry submitted successfully",
@@ -234,17 +235,12 @@ publicRouter.post("/enquiries", enquiryLimiter, async (req, res, next) => {
         city: fields.city ?? null,
         sessionId: fields.sessionId ?? null,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-      },
+      select: { id: true, createdAt: true },
     });
 
     // Fire-and-forget: a notification failure must never fail the
     // visitor's submission, which is already safely stored.
-    notifyNewEnquiry(enquiry).catch((err) => console.error("Enquiry notification failed:", err));
+    void deliverEnquiryEmail(enquiry.id);
 
     res.status(201).json({
       status: "ok",

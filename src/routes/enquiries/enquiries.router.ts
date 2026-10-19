@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { EnquiryStatus, Prisma, Role } from "@prisma/client";
+import { EmailStatus, EnquiryStatus, Prisma, Role } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
+import { deliverEnquiryEmail } from "../../lib/notifications.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import {
   ENQUIRY_EXPORT_LIMIT,
@@ -37,6 +38,10 @@ const enquirySelect = {
   sessionId: true,
   staffNotes: true,
   respondedAt: true,
+  emailStatus: true,
+  emailAttempts: true,
+  emailSentAt: true,
+  emailError: true,
   createdAt: true,
   updatedAt: true,
   itinerary: { select: { id: true, title: true, slug: true } },
@@ -44,9 +49,10 @@ const enquirySelect = {
 } satisfies Prisma.EnquirySelect;
 
 // Shared by the inbox list and the export so both match the same rows.
-function buildWhere(status?: EnquiryStatus, q?: string): Prisma.EnquiryWhereInput {
+function buildWhere(status?: EnquiryStatus, q?: string, email?: EmailStatus): Prisma.EnquiryWhereInput {
   return {
     ...(status && { status }),
+    ...(email && { emailStatus: email }),
     ...(q && {
       OR: [
         { name: { contains: q, mode: "insensitive" } },
@@ -70,9 +76,9 @@ enquiriesRouter.get("/", async (req, res, next) => {
       return;
     }
 
-    const { page, limit, status, q } = parseResult.data;
+    const { page, limit, status, q, email } = parseResult.data;
     const skip = (page - 1) * limit;
-    const where = buildWhere(status, q);
+    const where = buildWhere(status, q, email);
 
     const [total, enquiries] = await Promise.all([
       prisma.enquiry.count({ where }),
@@ -110,9 +116,15 @@ enquiriesRouter.get("/stats", async (_req, res, next) => {
       Object.values(EnquiryStatus).map((s) => [s, grouped.find((g) => g.status === s)?._count._all ?? 0])
     ) as Record<EnquiryStatus, number>;
 
+    const emailGrouped = await prisma.enquiry.groupBy({ by: ["emailStatus"], _count: { _all: true } });
+    const emailByStatus = Object.fromEntries(
+      Object.values(EmailStatus).map((s) => [s, emailGrouped.find((g) => g.emailStatus === s)?._count._all ?? 0])
+    ) as Record<EmailStatus, number>;
+
     res.json({
       status: "ok",
       byStatus,
+      emailByStatus,
       total: Object.values(byStatus).reduce((a, b) => a + b, 0),
       last7d,
     });
@@ -265,6 +277,27 @@ enquiriesRouter.patch("/:id", async (req, res, next) => {
       select: enquirySelect,
     });
 
+    res.json({ status: "ok", enquiry });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /enquiries/:id/resend-email — retry the staff alert email
+enquiriesRouter.post("/:id/resend-email", async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+    if (!enquiryIdSchema.safeParse(id).success) {
+      res.status(404).json({ status: "error", message: "Enquiry not found" });
+      return;
+    }
+    if (!(await prisma.enquiry.findUnique({ where: { id }, select: { id: true } }))) {
+      res.status(404).json({ status: "error", message: "Enquiry not found" });
+      return;
+    }
+
+    await deliverEnquiryEmail(id);
+    const enquiry = await prisma.enquiry.findUnique({ where: { id }, select: enquirySelect });
     res.json({ status: "ok", enquiry });
   } catch (err) {
     next(err);

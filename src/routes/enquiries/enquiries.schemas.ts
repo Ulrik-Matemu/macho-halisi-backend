@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { EnquiryStatus } from "@prisma/client";
+import { EmailStatus, EnquiryStatus } from "@prisma/client";
 
 export const enquiryListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   status: z.nativeEnum(EnquiryStatus).optional(),
+  email: z.nativeEnum(EmailStatus).optional(),
   q: z.string().trim().max(200).optional(),
 });
 
