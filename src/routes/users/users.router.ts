@@ -2,7 +2,7 @@ import { Router } from "express";
 import { Role } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { hashPassword } from "../../lib/password.js";
-import { requireAuth, invalidateAuthCache } from "../../middleware/requireAuth.js";
+import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import {
   createUserSchema,
@@ -164,7 +164,6 @@ usersRouter.patch("/:id/role", requireAuth, requireRole(Role.ADMIN), async (req,
       data: { role: parseResult.data.role },
       select: userSelect,
     });
-    invalidateAuthCache(id);
 
     res.json({ status: "ok", user });
   } catch (err) {
@@ -175,8 +174,9 @@ usersRouter.patch("/:id/role", requireAuth, requireRole(Role.ADMIN), async (req,
 // POST /users/:id/deactivate — Admin-only account deactivation.
 // Blocks the account from logging in (enforced in POST /auth/login) and
 // revokes all of the user's active refresh tokens so any live session is
-// cut. requireAuth re-checks isActive on every request, so their current
-// access token stops working immediately too.
+// cut. Their current access token (short-lived, ~15 min) remains valid
+// until natural expiry — the same tradeoff POST /:id/mfa/reset already
+// makes below, rather than adding a DB lookup to every requireAuth call.
 usersRouter.post(
   "/:id/deactivate",
   requireAuth,
@@ -204,7 +204,6 @@ usersRouter.post(
         }),
       ]);
 
-      invalidateAuthCache(id);
       res.json({ status: "ok", message: "User has been deactivated.", user });
     } catch (err) {
       next(err);
@@ -233,7 +232,6 @@ usersRouter.post(
         select: userSelect,
       });
 
-      invalidateAuthCache(id);
       res.json({ status: "ok", message: "User has been reactivated.", user });
     } catch (err) {
       next(err);

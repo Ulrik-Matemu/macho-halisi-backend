@@ -2,7 +2,7 @@ import { Router } from "express";
 import crypto from "node:crypto";
 import { Role } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
-import { verifyPassword, hashPassword } from "../../lib/password.js";
+import { verifyPassword } from "../../lib/password.js";
 import {
   signAccessToken,
   signRefreshToken,
@@ -21,7 +21,7 @@ import {
   decryptMfaSecret,
 } from "../../lib/mfa.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
-import { authLimiter, mfaLimiter, refreshLimiter } from "../../middleware/rateLimit.js";
+import { authLimiter, mfaLimiter } from "../../middleware/rateLimit.js";
 import {
   loginSchema,
   mfaVerifySchema,
@@ -37,12 +37,6 @@ export const authRouter = Router();
 // IPs, but this state lives in the database and does not.
 const MAX_FAILED_LOGIN_ATTEMPTS = 10;
 const LOGIN_LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
-
-// Compared against when the email matches no account, so an unknown email
-// costs the same bcrypt work as a wrong password and response timing can't
-// reveal which emails have accounts.
-let dummyHashPromise: Promise<string> | null = null;
-const dummyHash = () => (dummyHashPromise ??= hashPassword(crypto.randomBytes(32).toString("hex")));
 
 // Helper to issue access and refresh token pair
 async function issueTokenPair(userId: string, role: Role) {
@@ -76,15 +70,8 @@ authRouter.post("/login", authLimiter, async (req, res, next) => {
     const { email, password } = parseResult.data;
     const user = await prisma.user.findUnique({ where: { email } });
 
-    const passwordOk = user
-      ? await verifyPassword(password, user.passwordHash)
-      : (await verifyPassword(password, await dummyHash()), false);
-    const locked = !!user?.lockedUntil && user.lockedUntil > new Date();
-
-    // Account-level lockout, independent of the IP-keyed authLimiter
-    // above. Checked regardless of the password so a locked account can't
-    // be used as a guessing oracle (right vs wrong would answer differently).
-    if (locked) {
+    // Account-level lockout, independent of the IP-keyed authLimiter above.
+    if (user?.lockedUntil && user.lockedUntil > new Date()) {
       res.status(423).json({
         status: "error",
         message: "This account is temporarily locked due to repeated failed login attempts. Please try again later.",
@@ -92,10 +79,15 @@ authRouter.post("/login", authLimiter, async (req, res, next) => {
       return;
     }
 
-    // An unknown email and a wrong password get the same 401, after the
-    // same bcrypt work; a deactivated account is only revealed to someone
-    // who already knows its password.
-    if (!user || !passwordOk) {
+    if (user && !user.isActive) {
+      res.status(403).json({
+        status: "error",
+        message: "This account has been deactivated. Contact an administrator.",
+      });
+      return;
+    }
+
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
       if (user) {
         const failedLoginCount = user.failedLoginCount + 1;
         const lockedOut = failedLoginCount >= MAX_FAILED_LOGIN_ATTEMPTS;
@@ -108,14 +100,6 @@ authRouter.post("/login", authLimiter, async (req, res, next) => {
         });
       }
       res.status(401).json({ status: "error", message: "Invalid email or password" });
-      return;
-    }
-
-    if (!user.isActive) {
-      res.status(403).json({
-        status: "error",
-        message: "This account has been deactivated. Contact an administrator.",
-      });
       return;
     }
 
@@ -302,7 +286,7 @@ authRouter.post("/mfa/verify", mfaLimiter, async (req, res, next) => {
 });
 
 // 5. POST /auth/refresh
-authRouter.post("/refresh", refreshLimiter, async (req, res, next) => {
+authRouter.post("/refresh", async (req, res, next) => {
   try {
     const parseResult = refreshSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -354,8 +338,8 @@ authRouter.post("/refresh", refreshLimiter, async (req, res, next) => {
     }
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user || !user.isActive) {
-      res.status(401).json({ status: "error", message: "Invalid or expired refresh token" });
+    if (!user) {
+      res.status(401).json({ status: "error", message: "User not found" });
       return;
     }
 

@@ -14,15 +14,9 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     recordServerError(req, status, err.message || "Internal server error");
   }
 
-  // 5xx messages come from code, the database or a library and can name
-  // tables, columns or file paths; outside development only 4xx messages
-  // (deliberately thrown, user-facing) reach the client. The detail is
-  // kept in recordServerError above.
-  const exposeMessage = status < 500 || env.NODE_ENV === "development";
-
   res.status(status).json({
     status: "error",
-    message: exposeMessage ? err.message || "Internal server error" : "Internal server error",
+    message: err.message || "Internal server error",
     ...(env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };

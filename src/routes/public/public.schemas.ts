@@ -15,9 +15,9 @@ export const publicAccommodationQuerySchema = z.object({
 export type PublicAccommodationQueryParams = z.infer<typeof publicAccommodationQuerySchema>;
 
 export const publicEnquirySchema = z.object({
-  name: z.string().trim().min(2, "Name must be at least 2 characters").max(120),
-  email: z.string().trim().max(254).email("Please provide a valid email address"),
-  phone: z.string().trim().min(5, "Please provide a valid phone or WhatsApp number").max(40),
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().trim().email("Please provide a valid email address"),
+  phone: z.string().trim().min(5, "Please provide a valid phone or WhatsApp number"),
   itineraryId: z.string().uuid("Invalid itinerary ID").optional().nullable(),
   partySize: z.string().trim().max(100).optional().nullable(),
   preferredDates: z.string().trim().max(200).optional().nullable(),
@@ -35,7 +35,7 @@ export const publicEnquirySchema = z.object({
   sessionId: z.string().trim().max(64).optional().nullable(),
 
   // Honeypot — a visually hidden input real visitors never fill.
-  website: z.string().max(200).optional().nullable(),
+  website: z.string().optional().nullable(),
 });
 
 export type PublicEnquiryInput = z.infer<typeof publicEnquirySchema>;

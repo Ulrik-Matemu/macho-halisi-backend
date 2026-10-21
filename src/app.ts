@@ -17,8 +17,6 @@ import { enquiriesRouter } from "./routes/enquiries/index.js";
 import { requestMetrics, startRequestMetricsFlush } from "./middleware/requestMetrics.js";
 import { notFoundHandler } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { requireOriginSecret } from "./middleware/requireOriginSecret.js";
-import { apiLimiter } from "./middleware/rateLimit.js";
 
 export function createApp() {
   const app = express();
@@ -29,14 +27,8 @@ export function createApp() {
 
   // ── Security & parsing ───────────────────────
   app.use((helmet as any)());
-  app.disable("x-powered-by");
   app.use(cors({ origin: env.CORS_ORIGIN }));
-  // Before body parsing, so rejected callers cost as little as possible.
-  app.use(requireOriginSecret);
-  app.use(apiLimiter);
-  // Explicit cap (Express's default) — image uploads are multipart and
-  // bounded separately by multer in routes/uploads.
-  app.use(express.json({ limit: "100kb" }));
+  app.use(express.json());
 
   // ── Logging ──────────────────────────────────
   if (env.NODE_ENV === "development") {
