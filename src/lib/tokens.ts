@@ -3,6 +3,10 @@ import crypto from "node:crypto";
 import { env } from "../config/env.js";
 import { Role } from "@prisma/client";
 
+// Every token here is HMAC-signed by this server; pinning the algorithm
+// stops a token from choosing its own (e.g. "none" or an asymmetric alg).
+const VERIFY_OPTIONS: jwt.VerifyOptions = { algorithms: ["HS256"] };
+
 // ── Token payload types ────────────────────────
 
 export interface AccessTokenPayload {
@@ -31,7 +35,7 @@ export function signAccessToken(payload: AccessTokenPayload): string {
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as jwt.JwtPayload & AccessTokenPayload;
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, VERIFY_OPTIONS) as jwt.JwtPayload & AccessTokenPayload;
   // Reject MFA challenge/enrollment tokens that were accidentally sent as access tokens
   const purpose = (decoded as any).purpose;
   if (purpose === "mfa_challenge" || purpose === "mfa_enroll") {
@@ -49,7 +53,7 @@ export function signRefreshToken(payload: RefreshTokenPayload): string {
 }
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
-  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as jwt.JwtPayload & RefreshTokenPayload;
+  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET, VERIFY_OPTIONS) as jwt.JwtPayload & RefreshTokenPayload;
   return { userId: decoded.userId, tokenId: decoded.tokenId };
 }
 
@@ -66,14 +70,14 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
 
 export function signMfaChallengeToken(userId: string, purpose: MfaTokenPurpose): string {
   const payload: MfaChallengePayload = { userId, purpose };
-  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: "5m" });
+  return jwt.sign(payload, env.JWT_MFA_SECRET, { expiresIn: "5m" });
 }
 
 export function verifyMfaChallengeToken(
   token: string,
   expectedPurpose: MfaTokenPurpose
 ): MfaChallengePayload {
-  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as jwt.JwtPayload & MfaChallengePayload;
+  const decoded = jwt.verify(token, env.JWT_MFA_SECRET, VERIFY_OPTIONS) as jwt.JwtPayload & MfaChallengePayload;
   if (decoded.purpose !== expectedPurpose) {
     throw new Error("Invalid or mismatched-purpose MFA token");
   }

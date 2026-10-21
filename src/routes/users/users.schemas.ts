@@ -3,7 +3,7 @@ import { Role } from "@prisma/client";
 
 export const createUserSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters long"),
+  password: z.string().min(12, "Password must be at least 12 characters long").max(128),
   role: z.nativeEnum(Role, {
     message: "Role must be one of: ADMIN, EDITOR, AUTHOR, VIEWER",
   }),
@@ -22,7 +22,7 @@ export const updateUserRoleSchema = z.object({
 });
 
 export const resetUserPasswordSchema = z.object({
-  newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+  newPassword: z.string().min(12, "Password must be at least 12 characters long").max(128),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

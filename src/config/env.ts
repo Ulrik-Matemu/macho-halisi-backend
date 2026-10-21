@@ -7,7 +7,10 @@ const optionalString = z.preprocess((v) => (v === "" ? undefined : v), z.string(
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  // Development mode exposes stack traces and error details in responses
+  // (middleware/errorHandler.ts), so on Render (which sets RENDER=true) an
+  // unset NODE_ENV means production rather than falling back to development.
+  NODE_ENV: z.enum(["development", "production", "test"]).default(process.env.RENDER ? "production" : "development"),
   DB_HOST: z.string().min(1),
   DB_PORT: z.coerce.number().default(5433),
   DB_USER: z.string().min(1),
@@ -25,6 +28,10 @@ const envSchema = z.object({
     .pipe(z.array(z.string().url()).min(1, "CORS_ORIGIN must contain at least one valid URL")),
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
+  // Signs the short-lived MFA challenge/enrollment tokens. Separate from
+  // JWT_ACCESS_SECRET so an MFA token can never verify as an access token
+  // (or vice versa), even if the purpose check in lib/tokens.ts regresses.
+  JWT_MFA_SECRET: z.string().min(32, "JWT_MFA_SECRET must be at least 32 characters — generate with `openssl rand -hex 32`"),
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   MFA_ENCRYPTION_KEY: z
@@ -37,6 +44,11 @@ const envSchema = z.object({
   // forwarding analytics events — the only writer allowed on
   // POST /analytics/ingest.
   ANALYTICS_INGEST_SECRET: z.string().min(32, "ANALYTICS_INGEST_SECRET must be at least 32 characters — generate with `openssl rand -hex 32`"),
+  // Shared secret the website's server sends as X-Origin-Secret on every
+  // API call (src/middleware/requireOriginSecret.ts). While unset the lock
+  // is off, so it can be rolled out by setting it on Vercel first and on
+  // Render second without a window where the site can't reach the API.
+  ORIGIN_SECRET: optionalString.pipe(z.string().min(32, "ORIGIN_SECRET must be at least 32 characters — generate with `openssl rand -hex 32`").optional()),
   // Shared secret the GitHub Actions uptime cron sends as X-Monitor-Secret
   // on POST /monitoring/uptime.
   MONITOR_SECRET: z.string().min(32, "MONITOR_SECRET must be at least 32 characters — generate with `openssl rand -hex 32`"),
