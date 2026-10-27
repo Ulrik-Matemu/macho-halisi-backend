@@ -17,3 +17,6 @@ dist/
 
 # Docker local data (if any bind mounts are added later)
 pgdata/
+
+# Pre-write backups from content scripts
+scripts/data/backups/

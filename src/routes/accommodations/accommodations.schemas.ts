@@ -8,6 +8,36 @@ export const imageInputSchema = z.object({
   altText: z.string().trim().optional().nullable(),
 });
 
+export const SPACE_CATEGORIES = ["ROOM", "DINING", "WELLNESS", "MEETINGS", "CAMPING"] as const;
+export const ACTIVITY_CATEGORIES = ["SAFARI", "WALK", "CULTURE"] as const;
+
+// Rich-content blocks stored as JSON on Accommodation. Optional fields are
+// nullish so a half-filled dashboard row still validates.
+export const spaceSchema = z.object({
+  category: z.enum(SPACE_CATEGORIES),
+  name: z.string().trim().min(1, "Name is required"),
+  tagline: z.string().trim().optional().nullable(),
+  description: z.string().trim().optional().nullable(),
+  capacity: z.number().int().positive().optional().nullable(),
+  features: z.array(z.string().trim().min(1)).default([]),
+});
+
+export const nearbyPlaceSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  distanceKm: z.number().positive().optional().nullable(),
+  description: z.string().trim().optional().nullable(),
+});
+
+export const activitySchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  description: z.string().trim().optional().nullable(),
+  category: z.enum(ACTIVITY_CATEGORIES),
+});
+
+export type Space = z.infer<typeof spaceSchema>;
+export type NearbyPlace = z.infer<typeof nearbyPlaceSchema>;
+export type Activity = z.infer<typeof activitySchema>;
+
 export const createAccommodationSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required"),
@@ -20,6 +50,12 @@ export const createAccommodationSchema = z
     longitude: z.number().min(-180).max(180).optional().nullable(),
     description: z.string().trim().optional().nullable(),
     amenities: z.array(z.string().trim()).default([]),
+    tagline: z.string().trim().optional().nullable(),
+    elevationMeters: z.number().int().positive().optional().nullable(),
+    maxGuests: z.number().int().positive().optional().nullable(),
+    spaces: z.array(spaceSchema).default([]),
+    nearbyPlaces: z.array(nearbyPlaceSchema).default([]),
+    activities: z.array(activitySchema).default([]),
     pricePerNight: z.number().positive("Price per night must be a positive amount").optional().nullable(),
     priceOnRequest: z.boolean().default(false),
     destinationId: z.string().uuid("Invalid destination ID format").optional().nullable(),
@@ -62,6 +98,12 @@ export const updateAccommodationSchema = z
     longitude: z.number().min(-180).max(180).optional().nullable(),
     description: z.string().trim().optional().nullable(),
     amenities: z.array(z.string().trim()).optional(),
+    tagline: z.string().trim().optional().nullable(),
+    elevationMeters: z.number().int().positive().optional().nullable(),
+    maxGuests: z.number().int().positive().optional().nullable(),
+    spaces: z.array(spaceSchema).optional(),
+    nearbyPlaces: z.array(nearbyPlaceSchema).optional(),
+    activities: z.array(activitySchema).optional(),
     pricePerNight: z.number().positive("Price per night must be a positive amount").optional().nullable(),
     priceOnRequest: z.boolean().optional(),
     destinationId: z.string().uuid("Invalid destination ID format").optional().nullable(),

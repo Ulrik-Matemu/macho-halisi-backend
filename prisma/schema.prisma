@@ -378,36 +378,52 @@ model Enquiry {
 ///   When priceOnRequest = false, pricePerNight should be set.
 ///   Enforce this in route-level Zod validation, not here.
 model Accommodation {
-  id             String            @id @default(uuid()) @db.Uuid
-  name           String
-  slug           String            @unique
-  status         ItineraryStatus   @default(DRAFT)
-  type           AccommodationType
-  serviceTier    ServiceTier
+  id              String            @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String            @unique
+  status          ItineraryStatus   @default(DRAFT)
+  type            AccommodationType
+  serviceTier     ServiceTier
   // Quality-of-service star rating, 1–5. Nullable so unrated stays are
   // possible; the 1–5 bound is enforced in route-level Zod validation.
-  starRating     Int?
+  starRating      Int?
   // Human-readable location, e.g. "Central Serengeti, near Seronera".
-  locationText   String
+  locationText    String
   // Optional map pin — powers the interactive map on the public detail page.
-  latitude       Float?
-  longitude      Float?
-  description    String?           @db.Text
-  amenities      String[]
-  pricePerNight  Decimal?          @db.Decimal(10, 2)
-  priceOnRequest Boolean           @default(false)
+  latitude        Float?
+  longitude       Float?
+  description     String?           @db.Text
+  amenities       String[]
+  // Short headline shown under the name, e.g. "Your Tranquil Retreat in
+  // the Heart of Tanzania's Safari Country".
+  tagline         String?
+  elevationMeters Int?
+  // Total guests the property sleeps.
+  maxGuests       Int?
+  // Structured rich content. Json rather than child tables so the fields
+  // ride the AccommodationRevision review gate for free (its `data` is
+  // validated by updateAccommodationSchema); shapes are enforced by Zod in
+  // accommodations.schemas.ts, never by the database.
+  //   spaces:       { category, name, tagline?, description?, capacity?, features[] }[]
+  //   nearbyPlaces: { name, distanceKm?, description? }[]
+  //   activities:   { name, description?, category }[]
+  spaces          Json              @default("[]")
+  nearbyPlaces    Json              @default("[]")
+  activities      Json              @default("[]")
+  pricePerNight   Decimal?          @db.Decimal(10, 2)
+  priceOnRequest  Boolean           @default(false)
   // Optional link into the shared Destination catalog (e.g. this lodge sits
   // in Serengeti). SetNull so deleting a destination doesn't cascade-delete
   // accommodations — they just lose the link.
-  destinationId  String?           @db.Uuid
-  authorId       String            @db.Uuid
-  editorId       String?           @db.Uuid
-  publishedAt    DateTime?
+  destinationId   String?           @db.Uuid
+  authorId        String            @db.Uuid
+  editorId        String?           @db.Uuid
+  publishedAt     DateTime?
   // The public site's cover/hero image — see Itinerary.heroImageId for the
   // full rationale; same explicit-choice-over-position design.
-  heroImageId    String?           @db.Uuid
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  heroImageId     String?           @db.Uuid
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   // Relations
   author          User                   @relation("accommodationAuthor", fields: [authorId], references: [id])
