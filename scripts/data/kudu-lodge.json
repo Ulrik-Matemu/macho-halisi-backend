@@ -1,13 +1,13 @@
 {
   "name": "Kudu Lodge & Campsite",
   "locationText": "Karatu, Arusha Region, Tanzania",
-  "tagline": "Your Tranquil Retreat in the Heart of Tanzania's Safari Country",
+  "tagline": "Your Tranquil Retreat in the Heart of Tanzania’s Safari Country",
   "elevationMeters": 1400,
   "maxGuests": 60,
-  "description": "Nestled in the lush, green surroundings of Karatu in Tanzania's Arusha Region, Kudu Lodge & Campsite offers a peaceful retreat where natural beauty, warm hospitality, and safari adventure come together. Set at approximately 1,400 metres above sea level, our lodge provides a refreshing escape from the bustle of everyday life, inviting guests to unwind, reconnect with nature, and experience the authentic charm of Tanzania.\n\nSurrounded by tropical gardens and the tranquil atmosphere of the highlands, Kudu Lodge combines comfortable accommodation with thoughtful amenities and welcoming service. Whether you are beginning an exciting wildlife safari, enjoying a relaxing holiday, travelling with family, or seeking a convenient base for exploring the region, we offer a setting designed to make every stay memorable.\n\nFrom the cool highland mornings to the peaceful evenings beside a fireplace, Kudu Lodge is a place to relax, recharge, and prepare for the extraordinary experiences that await beyond our gardens.\n\nKaratu is ideally positioned between Lake Manyara National Park and the Ngorongoro Conservation Area, making it an excellent base for discovering some of Tanzania's most celebrated natural attractions. From remarkable wildlife encounters and breathtaking landscapes to cultural experiences and scenic excursions, the surrounding region offers something for every traveller.\n\nOur collection of free-standing, en-suite bungalows and family houses accommodates a variety of travel styles, from couples seeking a peaceful retreat to families and small groups looking for additional space. The lodge can accommodate up to 60 guests, making it suitable for individual travellers, safari groups, families, and organised tours.\n\nWith a choice of accommodation, a dedicated campsite, dining facilities, leisure amenities, conference spaces, and access to remarkable local excursions, Kudu Lodge brings together the essential elements of a rewarding stay.",
+  "description": "Nestled in the lush, green surroundings of Karatu in Tanzania’s Arusha Region, Kudu Lodge & Campsite offers a peaceful retreat where natural beauty, warm hospitality, and safari adventure come together. Set at approximately 1,400 metres above sea level, our lodge provides a refreshing escape from the bustle of everyday life, inviting guests to unwind, reconnect with nature, and experience the authentic charm of Tanzania.\n\nSurrounded by tropical gardens and the tranquil atmosphere of the highlands, Kudu Lodge combines comfortable accommodation with thoughtful amenities and welcoming service. Whether you are beginning an exciting wildlife safari, enjoying a relaxing holiday, travelling with family, or seeking a convenient base for exploring the region, we offer a setting designed to make every stay memorable.\n\nFrom the cool highland mornings to the peaceful evenings beside a fireplace, Kudu Lodge is a place to relax, recharge, and prepare for the extraordinary experiences that await beyond our gardens.\n\nKaratu is ideally positioned between Lake Manyara National Park and the Ngorongoro Conservation Area, making it an excellent base for discovering some of Tanzania’s most celebrated natural attractions. From remarkable wildlife encounters and breathtaking landscapes to cultural experiences and scenic excursions, the surrounding region offers something for every traveller.\n\nWhether you are visiting for a single night or staying longer to explore the region, Kudu Lodge offers a welcoming base from which to experience the wonders of Northern Tanzania.\n\nAt Kudu Lodge & Campsite, we understand that exceptional safari experiences deserve a comfortable place to return to at the end of the day. Our accommodation combines space, privacy, and practical amenities with the tranquillity of our beautifully maintained tropical gardens.\n\nOur collection of free-standing, en-suite bungalows and family houses accommodates a variety of travel styles, from couples seeking a peaceful retreat to families and small groups looking for additional space. The lodge can accommodate up to 60 guests, making it suitable for individual travellers, safari groups, families, and organised tours.\n\nAt Kudu Lodge, dining is an important part of the guest experience. Our kitchen team prepares meals designed to satisfy guests returning from a full day of wildlife viewing, sightseeing, or outdoor adventure.\n\nBeyond our accommodation and dining facilities, Kudu Lodge offers opportunities to relax, refresh, and enjoy a slower pace of life between safari adventures.\n\nA stay at Kudu Lodge is an invitation to discover the extraordinary diversity of Northern Tanzania. From world-famous wildlife destinations to lesser-known cultural and natural attractions, our location makes it possible to experience the region in a variety of ways.\n\nThese experiences offer a wonderful way to complement traditional game drives with opportunities to appreciate the region’s landscapes, wildlife, and cultural character.\n\nAt Kudu Lodge & Campsite, we believe that a memorable stay is created through the combination of a welcoming atmosphere, comfortable surroundings, attentive service, and access to extraordinary experiences.\n\nFrom the moment you arrive, our aim is to provide a relaxing and convenient base for your time in Tanzania, whether you are travelling on a wildlife safari, enjoying a family holiday, attending a conference, or exploring the countryside at your own pace.\n\nWith a choice of accommodation, a dedicated campsite, dining facilities, leisure amenities, conference spaces, and access to remarkable local excursions, Kudu Lodge brings together the essential elements of a rewarding stay.\n\nKudu Lodge & Campsite — Your Home in Karatu, Your Gateway to Tanzania’s Wild Wonders.",
   "amenities": [
     "Private verandahs for relaxing outdoors",
-    "Mosquito nets",
+    "Mosquito nets for added comfort",
     "Internal telephone facilities",
     "Hairdryers",
     "Tea and coffee-making facilities",
@@ -19,8 +19,12 @@
       "category": "ROOM",
       "name": "Ruaha Rondavels",
       "tagline": "Spacious Comfort with a Touch of Traditional Charm",
-      "description": "Designed for guests who appreciate generous space and a relaxing atmosphere, our Ruaha Rondavels feature large bedrooms, spacious en-suite bathrooms, and private lounges complete with cosy fireplaces. They provide an inviting setting in which to unwind after a day exploring Tanzania's magnificent national parks.",
-      "features": ["Large bedrooms", "Spacious en-suite bathrooms", "Private lounge with cosy fireplace"]
+      "description": "Designed for guests who appreciate generous space and a relaxing atmosphere, our Ruaha Rondavels feature large bedrooms, spacious en-suite bathrooms, and private lounges complete with cosy fireplaces. They provide an inviting setting in which to unwind after a day exploring Tanzania’s magnificent national parks.",
+      "features": [
+        "Large bedrooms",
+        "Spacious en-suite bathrooms",
+        "Private lounge with cosy fireplace"
+      ]
     },
     {
       "category": "ROOM",
@@ -53,37 +57,53 @@
       "tagline": "A Closer Connection to the Outdoors",
       "description": "For travellers who enjoy the freedom and simplicity of camping, our campsite offers a relaxed outdoor experience in a dedicated area set apart from the main lodge. With capacity for up to 60 tents, the campsite provides essential facilities, including cooking bandas, showers, and toilets.\n\nWhether you are travelling independently, exploring Tanzania in a safari vehicle, or enjoying an overland adventure, our campsite offers a practical and welcoming place to rest between journeys.",
       "capacity": 60,
-      "features": ["Cooking bandas", "Showers", "Toilets"]
+      "features": [
+        "Cooking bandas",
+        "Showers",
+        "Toilets"
+      ]
     },
     {
       "category": "DINING",
       "name": "Restaurant & Dining Room",
       "description": "Our main dining room accommodates up to 65 guests, offering a welcoming setting for individual travellers, families, and safari groups. Our chefs prepare a selection of delicious meals, while our dining services also cater to travellers passing through Karatu.\n\nGuests can enjoy convenient buffet lunches during their journeys, as well as standard or specially arranged lunch boxes for excursions and full-day safaris.",
       "capacity": 65,
-      "features": ["Buffet lunches", "Standard or specially arranged lunch boxes"]
+      "features": [
+        "Buffet lunches",
+        "Standard or specially arranged lunch boxes"
+      ]
     },
     {
       "category": "DINING",
       "name": "Bar & Lounge",
       "description": "After an exciting day in the wilderness, our bar and lounge provide the perfect place to relax and share safari stories. The inviting atmosphere, well-stocked bar, and indoor fireplaces make this a comfortable gathering place, particularly during the cool highland evenings.\n\nWhether you prefer a quiet moment by the fire or an enjoyable conversation with fellow travellers, our social spaces offer a warm and welcoming end to the day.",
-      "features": ["Well-stocked bar", "Indoor fireplaces"]
+      "features": [
+        "Well-stocked bar",
+        "Indoor fireplaces"
+      ]
     },
     {
       "category": "WELLNESS",
       "name": "Mrembo Spa",
       "description": "Discover a moment of tranquillity at Mrembo Spa, where professional and friendly wellness personnel offer African-inspired massage experiences designed to help you relax and rejuvenate.\n\nAfter long hours of travel, a rewarding day of wildlife viewing, or an adventurous excursion, the spa provides an opportunity to unwind and restore your sense of well-being.",
-      "features": ["African-inspired massage experiences"]
+      "features": [
+        "African-inspired massage experiences"
+      ]
     },
     {
       "category": "WELLNESS",
       "name": "Swimming Pool & Poolside Bar",
-      "description": "Our spacious 19-metre-by-8-metre swimming pool offers a refreshing escape in the heart of the lodge. A separate shallow pool provides a dedicated space for younger guests, while the poolside bar creates an inviting setting for relaxation.\n\nDecorative wildlife statues add character to the surroundings, and the pool area takes on a particularly atmospheric feel in the evening, when candlelight creates a warm and intimate ambience.",
-      "features": ["19 m x 8 m swimming pool", "Separate shallow pool for younger guests", "Poolside bar"]
+      "description": "Our spacious 19-metre-by-8-metre swimming pool offers a refreshing escape in the heart of the lodge. A separate shallow pool provides a dedicated space for younger guests, while the poolside bar creates an inviting setting for relaxation.\n\nDecorative wildlife statues add character to the surroundings, and the pool area takes on a particularly atmospheric feel in the evening, when candlelight creates a warm and intimate ambience.\n\nWhether you wish to cool off after a safari, enjoy a leisurely afternoon, or simply relax outdoors, our poolside facilities offer a welcome change of pace.",
+      "features": [
+        "19 m x 8 m swimming pool",
+        "Separate shallow pool for younger guests",
+        "Poolside bar"
+      ]
     },
     {
       "category": "MEETINGS",
-      "name": "Conferences, Meetings & Special Occasions",
-      "description": "Kudu Lodge provides a modern conference facility in a peaceful setting, offering an alternative to conventional urban meeting venues. Our conference centre is suitable for a range of professional, social, and private events.\n\nCombining a tranquil environment with the lodge's accommodation, dining, and leisure facilities, Kudu Lodge offers a convenient setting for gatherings that bring people together.",
+      "name": "Conference Centre",
+      "description": "Kudu Lodge provides a modern conference facility in a peaceful setting, offering an alternative to conventional urban meeting venues. Our conference centre is suitable for a range of professional, social, and private events.\n\nCombining a tranquil environment with the lodge’s accommodation, dining, and leisure facilities, Kudu Lodge offers a convenient setting for gatherings that bring people together.",
       "features": [
         "Corporate conferences and business meetings",
         "Workshops and training sessions",
@@ -103,12 +123,12 @@
     {
       "name": "Ngorongoro Crater",
       "distanceKm": 40,
-      "description": "Explore one of Africa's most extraordinary wildlife destinations, renowned for its spectacular scenery and abundant animal populations."
+      "description": "Explore one of Africa’s most extraordinary wildlife destinations, renowned for its spectacular scenery and abundant animal populations."
     },
     {
       "name": "Arusha",
       "distanceKm": 140,
-      "description": "Connect with the vibrant gateway city to Tanzania's Northern Safari Circuit."
+      "description": "Connect with the vibrant gateway city to Tanzania’s Northern Safari Circuit."
     },
     {
       "name": "Serengeti National Park",
@@ -130,12 +150,12 @@
     {
       "category": "SAFARI",
       "name": "Tarangire National Park",
-      "description": "Experience vast baobab-studded landscapes and impressive elephant herds in one of Tanzania's most distinctive wildlife destinations."
+      "description": "Experience vast baobab-studded landscapes and impressive elephant herds in one of Tanzania’s most distinctive wildlife destinations."
     },
     {
-      "category": "CULTURE",
+      "category": "SAFARI",
       "name": "Lake Eyasi",
-      "description": "Discover the region's cultural heritage and, where arrangements permit, learn about the traditional lifestyles of the Hadzabe people."
+      "description": "Discover the region’s cultural heritage and, where arrangements permit, learn about the traditional lifestyles of the Hadzabe people."
     },
     {
       "category": "SAFARI",
@@ -143,7 +163,7 @@
       "description": "Explore dramatic landscapes, volcanic scenery, and the distinctive natural environment surrounding this remarkable soda lake."
     },
     {
-      "category": "CULTURE",
+      "category": "WALK",
       "name": "Guided village walks",
       "description": "Discover local life, community traditions, and the everyday rhythms of rural Tanzania."
     },
@@ -160,7 +180,7 @@
     {
       "category": "WALK",
       "name": "Birdwatching walks",
-      "description": "Discover the region's diverse birdlife on specialised excursions led by a qualified ornithologist."
+      "description": "Discover the region’s diverse birdlife on specialised excursions led by a qualified ornithologist."
     },
     {
       "category": "WALK",
