@@ -17,7 +17,15 @@ export type PublicAccommodationQueryParams = z.infer<typeof publicAccommodationQ
 export const publicEnquirySchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   email: z.string().trim().email("Please provide a valid email address"),
-  phone: z.string().trim().min(5, "Please provide a valid phone or WhatsApp number"),
+  // Optional: an empty string is stored when the guest leaves it blank.
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .refine((v) => v === "" || v.length >= 5, "Please provide a valid phone or WhatsApp number")
+    .optional()
+    .nullable()
+    .transform((v) => v ?? ""),
   itineraryId: z.string().uuid("Invalid itinerary ID").optional().nullable(),
   partySize: z.string().trim().max(100).optional().nullable(),
   preferredDates: z.string().trim().max(200).optional().nullable(),

@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { AvailabilityStatus, ItineraryStatus } from "@prisma/client";
 import { prisma } from "../src/db/prisma.js";
 import { generateUniqueDestinationSlug } from "../src/lib/slug.js";
+import { placesVisited } from "./data/itinerary-places.js";
 
 /**
  * Loads the client's five supplied safari packages (7, 9, 10, 12 and 15
@@ -235,7 +236,14 @@ async function main() {
 
     await prisma.itinerary.deleteMany({ where: { slug: meta.slug } });
 
-    const destKeys = [...new Set(source.items.map((d) => d.dest).filter((k): k is string => !!k && k in DESTINATIONS))];
+    // Overnight stops plus every place the daily programme visits, so the
+    // "Destinations visited" summary matches the route.
+    const destKeys = [
+      ...new Set([
+        ...source.items.map((d) => d.dest).filter((k): k is string => !!k && k in DESTINATIONS),
+        ...placesVisited(source.items),
+      ]),
+    ];
     for (const key of destKeys) {
       if (!destCache.has(key)) destCache.set(key, await ensureDestination(key));
     }

@@ -37,7 +37,7 @@ export async function deliverEnquiryEmail(enquiryId: string): Promise<EmailStatu
     const rows: [string, string | null | undefined][] = [
       ["Name", enquiry.name],
       ["Email", enquiry.email],
-      ["Phone / WhatsApp", enquiry.phone],
+      ["Phone / WhatsApp", enquiry.phone || "Not provided"],
       ["Itinerary", enquiry.itinerary?.title],
       ["Party size", enquiry.partySize],
       ["Preferred dates", enquiry.preferredDates],
